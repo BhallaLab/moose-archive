@@ -1,4 +1,3 @@
-
 /**********************************************************************
 ** This program is part of 'MOOSE', the
 ** Messaging Object Oriented Simulation Environment.
@@ -8,37 +7,41 @@
 ** See the file COPYING.LIB for the full notice.
 **********************************************************************/
 
-#ifndef _FULL_ID_H
-#define _FULL_ID_H
+#ifndef _OBJ_ID_H
+#define _OBJ_ID_H
 
 /**
  * This class manages lookups for specific data entries in elements,
  * in a node-independent manner.
  * It is basically a composite of Id and DataId.
  */
-class FullId
+class ObjId
 {
-	friend ostream& operator <<( ostream& s, const FullId& i );
-	friend istream& operator >>( istream& s, FullId& i );
+	friend ostream& operator <<( ostream& s, const ObjId& i );
+	friend istream& operator >>( istream& s, ObjId& i );
 	public:
 		//////////////////////////////////////////////////////////////
-		//	FullId creation
+		//	ObjId creation
 		//////////////////////////////////////////////////////////////
 		/**
 		 * Returns the root Id
 		 */
-		FullId()
+		ObjId()
 			: id(), dataId()
 		{;}
 
 		/**
-		 * Creates a FullId using specified Id and DataId
+		 * Creates a ObjId using specified Id and DataId
 		 */
-		FullId( Id i, DataId d )
+		ObjId( Id i, DataId d )
 			: id( i ), dataId( d )
 		{;}
 
-		static const FullId& bad();
+		ObjId( Id i )
+			: id( i ), dataId( 0 )
+		{;}
+
+		static const ObjId& bad();
 
 		/**
 		 * Returns the Eref matching itself.
@@ -48,7 +51,22 @@ class FullId
 		/**
 		 * For equality check
 		 */
-		bool operator==( const FullId& other ) const;
+		bool operator==( const ObjId& other ) const;
+
+		/**
+		 * True if the data is present on the current node.
+		 */
+		bool isDataHere() const;
+
+		/**
+		 * Returns data entry for this object
+		 */
+		char* data() const;
+
+		/**
+		 * Returns Element part
+		 */
+		Element* element() const;
 
 		/**
 		 * Here are the data values.
@@ -59,4 +77,4 @@ class FullId
 	private:
 };
 
-#endif // _FULL_ID_H
+#endif // _OBJ_ID_H

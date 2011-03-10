@@ -99,7 +99,7 @@ static SrcFinfo0 requestTerminate( "requestTerminate",
 			"Violently stops a simulation, possibly leaving things half-done."
 			"Goes to all nodes including self."
 			);
-static SrcFinfo6< string, MsgId, FullId, string, FullId, string > 
+static SrcFinfo6< string, MsgId, ObjId, string, ObjId, string > 
 		requestAddMsg( 
 			"requestAddMsg",
 			"requestAddMsg( type, src, srcField, dest, destField );"
@@ -162,12 +162,12 @@ DestFinfo* handleAck()
 
 static DestFinfo handleAddMsg( "handleAddMsg", 
 			"Makes a msg",
-			new EpFunc6< Shell, string, MsgId, FullId, string, FullId, string >
+			new EpFunc6< Shell, string, MsgId, ObjId, string, ObjId, string >
 				( & Shell::handleAddMsg ) );
 
 static DestFinfo handleSet( "handleSet", 
 			"Deals with request, to set specified field on any node to a value.",
-			new OpFunc4< Shell, Id, DataId, FuncId, PrepackedBuffer >( 
+			new EpFunc4< Shell, Id, DataId, FuncId, PrepackedBuffer >( 
 				&Shell::handleSet )
 			);
 
@@ -192,7 +192,7 @@ SrcFinfo4< Id, DataId, FuncId, unsigned int >* requestGet()
 static DestFinfo handleGet( "handleGet", 
 			"handleGet( Id elementId, DataId index, FuncId fid )"
 			"Deals with requestGet, to get specified field from any node.",
-			new OpFunc4< Shell, Id, DataId, FuncId, unsigned int >( 
+			new EpFunc4< Shell, Id, DataId, FuncId, unsigned int >( 
 				&Shell::handleGet )
 			);
 
@@ -363,9 +363,12 @@ static const Cinfo* shellCinfo = Shell::initCinfo();
 
 Shell::Shell()
 	: 
+		anotherCycleFlag_( 0 ),
 		gettingVector_( 0 ),
+		numGetVecReturns_( 0 ),
 		isSingleThreaded_( 0 ),
 		isBlockedOnParser_( 0 ),
+		threadProcs_(1),
 		numAcks_( 0 ),
 		acked_( 1, 0 ),
 		barrier1_( 0 ),
@@ -378,6 +381,11 @@ Shell::Shell()
 	// cout << myNode() << ": fids\n";
 	// shellCinfo->reportFids();
 	getBuf_.resize( 1, 0 );
+}
+
+Shell::~Shell()
+{
+	clearGetBuf();
 }
 
 void Shell::setShellElement( Element* shelle )
@@ -415,8 +423,8 @@ bool Shell::doDelete( Id i )
 }
 
 MsgId Shell::doAddMsg( const string& msgType, 
-	FullId src, const string& srcField, 
-	FullId dest, const string& destField )
+	ObjId src, const string& srcField, 
+	ObjId dest, const string& destField )
 {
 	if ( !src.id() ) {
 		cout << myNode_ << ": Error: Shell::doAddMsg: src not found\n";
@@ -486,10 +494,10 @@ void Shell::connectMasterMsg()
 
 	Id clockId( 1 );
 	bool ret = innerAddMsg( "Single", Msg::nextMsgId(), 
-		FullId( shellId, 0 ), "clockControl", 
-		FullId( clockId, 0 ), "clockControl" );
+		ObjId( shellId, 0 ), "clockControl", 
+		ObjId( clockId, 0 ), "clockControl" );
 	assert( ret );
-	// innerAddMsg( string msgType, FullId src, string srcField, FullId dest, string destField )
+	// innerAddMsg( string msgType, ObjId src, string srcField, ObjId dest, string destField )
 }
 
 void Shell::doQuit( )
@@ -663,9 +671,25 @@ void Shell::clearRestructuringQ()
  * following synaptic setup, for example.
  * The elm is the Element to synchronize
  * the FuncId is the 'get' function on the array size field.
+ * The tgt is the FieldElement to synchronize. Need to specify this because
+ * in principle a given elm could have multiple FieldElements.
  */
-void Shell::doSyncDataHandler( Id elm, FuncId sizeField, Id tgt )
+void Shell::doSyncDataHandler( Id elm, const string& sizeField, Id tgt )
 {
+	const Finfo* f = elm()->cinfo()->findFinfo( sizeField );
+	if ( !f ) {
+		cout << myNode() << ": Shell::doSyncDataHandler: Error, field '" <<
+			sizeField << "' not found on " << elm.path() << "\n";
+		return;
+	}
+	const DestFinfo* df = dynamic_cast< const DestFinfo* >( f );
+	if ( !df ) {
+		cout << myNode() << ": Shell::doSyncDataHandler: Error, field '" <<
+			sizeField << "' not a DestFinfo on " << elm.path() << "\n";
+		return;
+	}
+	FuncId sizeFid = df->getFid();
+
 	FieldDataHandlerBase* fb = 
 		dynamic_cast< FieldDataHandlerBase* >( tgt()->dataHandler() );
 	if ( !fb ) {
@@ -675,10 +699,10 @@ void Shell::doSyncDataHandler( Id elm, FuncId sizeField, Id tgt )
 	}
 	Eref sheller( shelle_, 0 );
 	initAck();
-		requestSync.send( sheller, &p_, elm, sizeField );
+		requestSync.send( sheller, &p_, elm, sizeFid );
 	waitForAck();
 	// Now the data is back, assign the field.
-	fb->setFieldDimension( maxIndex_ );
+	Field< unsigned int >::set( ObjId( tgt, 0 ), "fieldDimension", maxIndex_ );
 }
 
 ////////////////////////////////////////////////////////////////
@@ -754,11 +778,7 @@ bool Shell::adopt( Id parent, Id child ) {
 	Msg* m = new OneToAllMsg( Msg::nextMsgId(), parent.eref(), child() );
 	assert( m );
 
-	/*
-	cout << myNode_ << ", Shell::adopt: mid = " << m->mid() <<
-		", pa =" << parent << "." << parent()->getName() << 
-		", kid=" << child << "." << child()->getName() << "\n";
-		*/
+	// cout << myNode_ << ", Shell::adopt: mid = " << m->mid() << ", pa =" << parent << "." << parent()->getName() << ", kid=" << child << "." << child()->getName() << "\n";
 
 	if ( !f1->addMsg( pf, m->mid(), parent() ) ) {
 		cout << "move: Error: unable to add parent->child msg from " <<
@@ -816,8 +836,8 @@ void Shell::destroy( const Eref& e, const Qinfo* q, Id eid)
  * multiple acks.
  */
 void Shell::handleAddMsg( const Eref& e, const Qinfo* q,
-	string msgType, MsgId mid, FullId src, string srcField, 
-	FullId dest, string destField )
+	string msgType, MsgId mid, ObjId src, string srcField, 
+	ObjId dest, string destField )
 {
 	if ( q->addToStructuralQ() )
 		return;
@@ -831,8 +851,8 @@ void Shell::handleAddMsg( const Eref& e, const Qinfo* q,
  * The actual function that adds messages. Does NOT send an ack.
  */
 bool Shell::innerAddMsg( string msgType, MsgId mid,
-	FullId src, string srcField, 
-	FullId dest, string destField )
+	ObjId src, string srcField, 
+	ObjId dest, string destField )
 {
 	/*
 	cout << myNode_ << ", Shell::handleAddMsg: " << 
@@ -931,12 +951,12 @@ void Shell::handleUseClock( const Eref& e, const Qinfo* q,
 		field = tickField = "proc"; // Use the shared Msg with process and reinit.
 	for ( vector< Id >::iterator i = list.begin(); i != list.end(); ++i ) {
 		stringstream ss;
-		FullId tickId( Id( 2 ), DataId( 0, tick ) );
+		ObjId tickId( Id( 2 ), DataId( 0, tick ) );
 		ss << tickField << tick;
 		// bool ret = 
 		innerAddMsg( "OneToAll", Msg::nextMsgId(), 
 			tickId, ss.str(), 
-			FullId( *i, 0 ), field);
+			ObjId( *i, 0 ), field);
 		// We just skip messages that don't work.
 		/*
 		if ( !ret ) {
@@ -965,6 +985,12 @@ void Shell::wildcard( const string& path, vector< Id >& list )
 	wildcardFind( path, list );
 }
 
+const ProcInfo* Shell::getProcInfo( unsigned int index ) const
+{
+	assert( index < threadProcs_.size() );
+	return &( threadProcs_[index] );
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // Functions for handling acks for blocking Shell function calls are
 // moved to ShellThreads.cpp
@@ -981,9 +1007,11 @@ const ProcInfo* Shell::procInfo()
 	return &p_;
 }
 
-void Shell::digestReduceMax( const ReduceMax< unsigned int >* arg )
+void Shell::digestReduceMax( 
+	const Eref& er, const ReduceMax< unsigned int >* arg )
 {
 	maxIndex_ = arg->max();
-	ack()->send( Eref( shelle_, 0 ), &p_, Shell::myNode(), OkStatus );
+	// ack()->send( Eref( shelle_, 0 ), &p_, Shell::myNode(), OkStatus );
+	ack()->send( er, &p_, Shell::myNode(), OkStatus );
 }
 

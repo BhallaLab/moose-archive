@@ -10920,3 +10920,741 @@ Now it looks like I may have to revert to an earlier version of MOOSE
 to figure out what has broken.
 
 ============================================================================
+24 Feb
+Checkin 2478 as a reference commit to return to once the threading issue is
+identified. The last thread-clean version seems to have been 2450.
+
+Checked this out. Compiled it, confirmed it runs well with 1 to 11 cores.
+Now to figure out what fundamental things have changed.
+
+Process loop:
+	Only shifted around one commented out line.
+Shell calls: Seems reasonable. testShell.cpp has been massively changed.
+	But we still get errors in other tests even if it is not called.
+Set/Get messaging: Seems OK. Only changes are in Element interface.
+OpFuncs and EpFuncs and SetGet.h.: These have had an extra template with 
+	up to 6 args. Seems OK, but this is a particularly sensitive section.
+	Are there any I'm missing? Also checked Conv.h, that is clean.
+Finfos.
+	SrcFinfo just has a new template for 6 args. Looks OK. Others seem
+		unchanged. None of the .cpps have changed.
+Handlers: No change, except the new MsgDataHandler.
+Qinfo: Looks OK. Almost all changes are to reportQ
+Msgs:  .hs look sensible, mostly the simple API changes.
+	.cpps: Msg needs checking. Seems Ok.
+		SingleMsg:106c234, 108c236: OK.
+Scheduling: All changes seem to be in testScheduling.cpp
+[Reduce operation]. I've looked at this a lot already.
+
+Summary: No obvious slip-up in the new code.
+
+Next: Systematically block out the tests from the main, to see if the problem
+can be put down to a subset of them.
+
+============================================================================
+25 Feb
+Changes made after 2450:
+2451: Fix ReduceBase::reduceNodes() to tertiary reduce not on starting node.
+2452: Fixing multinode tests, using GetVec instead of direct ptr access.
+	Here I realized issue with MsgId alignment.
+2455: 6 arg funcs implemented
+2457: Working through unit tests
+2458: Silly bugfix to use Msg::nextMsgId
+2459: Various printf debugs, added a unit test testShell::testChildren
+2460: Debugging sequence of calling testMove.
+2461: Fixed reuse of MsgIds
+2462: cleaned up printf debugging
+	Here I realized issue with MsgDataHandlers, and redid using direct
+	MsgId as DataId for the handlers.
+2464-2466: compilation, linking
+2467: Got rid of null constructor for Msg.
+2468: Making MsgDataHandlers. This version clears unit tests, see if it
+	handles multiple cores.
+2469: Works through the first MPI unit tests
+2470: Got rid of MsgId garbage collection.
+2471: Got rid of some printf debugging. Clears some unit tests. This is
+	where the threading bugs became obvious.
+2478: Reference commit, still has the threading bugs.
+
+Looked closely at the garbage collection. Doesn't seem like a likely problem.
+Should simply go back and find where the problems start.
+============================================================================
+26 Feb
+Revisited checkin 2468. This usually runs and is OK with as many as 11 cores,
+but does fail sometimes. When it does so the symptoms are similar to those
+we saw with 2478. I also saw a failure in the message test following a copy.
+One difference is that in the message lookup failures, it seems like the
+Qinfo isn't bad, which it was in the 2478 errors.
+
+Some numbers: v2450 ran 12 times with 11 threads without error
+v2469 ran 14 times with 11 threads, 2 errors.
+v2470 ran 18 times with 11 threads. about 4 errors that look like 
+	clock startup failures, and 2 that look like a message problem
+Current (2478): fails every time with 11 threads. 
+	About half with the NUM_TOT_SYN assertion failure, and half before that
+	with the messaging failure.
+
+Cleaned up printf debugging from 2470. 
+Out of 24 trials (moose -c 11) we have:
+- 1 error: testShell.cpp:795 in testShellAddMsg.
+- 1 error: testShell.cpp:768 in testShellAddMsg. These are both after a getVec
+- 3 error: Msg.cpp: getMsg( MsgId ). Another bad msgId.
+- 1 error: Simple segmentation fault. No idea where.
+
+I wonder if getVec is the root cause of it all. Let's redo the tests
+with a single thread, moose -c 1. Out of 10 runs,
+- 1 error: testScheduling.cpp:516: testThreadIntFireNetwork (after a setVec)
+I don't understand this. Without threads, it should be deterministic. 
+
+Next: work on the stuff from v2470. 
+	- Put in a loop to test SetVec and GetVec with an eye to their
+	reliability
+	- Consider if there is a better way to do the return from Get and 
+	GetVec than the hack. Maybe even expand Qinfo.
+============================================================================
+27 Feb
+Start with a new branch using rev 2470. 
+I want to have the threading stuff completely clean before going 
+on to the internode stuff.
+
+I've called this branch threadMsg. It is rev 2481. Shifting this
+file and other operations over there.
+
+Fixed up error messages. running with -c 11.
+in 30 cycles these are the outcomes: 
+testShellAddMsg: 			4 failures
+Msg.cpp m< msg_size assertion: 		8 failure
+testCopyMsgOps				2 failure
+quit exit				1 failure
+
+Checkin 2482.
+
+Attempt 1: Put in the test for 'addToStructuralQ' into 
+each of the handleSet and handleGet functions. This had cascade
+effects in other places to deal with the changed arguments to the
+functions. 
+In 38 cycles these are the outcomes:
+quit exit				1 failure
+Segv					2 failure
+Msg.cpp m< msg_size assertion: 		1 failure
+testShellAddMsg 			2 failure
+testCopyMsgOps				2 failure
+
+So it looks like this has helped significantly with the 
+	Msg.cpp m < msg_size assertion issue. Other failures look about
+	the same, and may well be separate issues.
+
+Checkin 2483.
+Looked for other cases where structural calls were not thread-safe.
+The innerAddMsg call is protected by the Qinfo::addToStructuralQ()
+except for the Shell::connectMasterMsg function, and that is called
+in a single-thread region of the code anyway.
+
+May need to have a closer look at the getVec and setVec.
+
+Trying first to persuade the system to crash in gdb. After 10 or
+so cycles it fails with the Msg.cpp error. This is
+in one of the 11 worker threads, but looks like 8 other of the worker
+threads have the same problem.
+The Qinfo in readBuf is garbled in its msgId, funcId and srcIndex,
+and has a supposed size of zero. Oddly its booleans are OK, they
+usually go bad in pointer errors.
+The calling test is testShellAddMsg in testShell.cpp:771, this is
+a getVec call. 
+I have a funny odd-number size in the buffer. I wonder if this is
+permitted. Name length is not the issue.
+Did a printf debug line. It happens, but rarely. One place is in 
+testShell.cpp: testCopy.
+Second place is in 
+testShell.cpp:testCopyMsgOps.
+Both times it is precisely in the shell::doCopy command.
+OK, the reason may be that one of the arguments is a bool.
+Do we have an alignment issue here?
+
+Despite the odd-numbered qinfo size, the test runs completed.
+
+Got it to fail again. This time it was again after a copy, but the
+actual error happened in a getVec call.
+
+Let's try putting in a template specialization for 
+Conv< bool >
+so it uses at least 4 bytes.
+
+This does avoid the odd-number buffers.
+
+In 40 cycles of "./moose -c 11" these are the outcomes:
+testShellAddMsg:		4 failures (all off values returned by getVec)
+testCopyMsgOps:			2 failures (off value returned by getVec)
+Msg.cpp m < msg_.size()		1 failure (Q entry was odd sized here).
+quit exit			1 failure
+
+Well, this is strong correlative support for the idea that the odd-sized
+queue entries are associated with bad data. The number of failures hasn't
+changed though. It is also strong support for continuing issues with 
+getVec.
+Checkin 2484.
+
+Put in a printf to report what the returned vector is like in cases
+where it fails:
+In 47 runs:
+void testShellAddMsg(): Assertion `ret' failed.
+( 3, 3 ) ( 3, 3 ) ( 3, 0 ) ( 3, 3 ) ( 3, 0 )
+
+void testCopyMsgOps(): Assertion `ret' failed.
+( 5, 5 ) ( 4, 4 ) ( 3, 2 ) ( 2, 0 ) ( 1, 1 )
+
+void testShellAddMsg(): Assertion `ret' failed.
+( 1, 0 ) ( 2, 2 ) ( 3, 3 ) ( 4, 4 ) ( 5, 5 )
+
+void testShellAddMsg(): Assertion `ret' failed.
+( 14, 14 ) ( 13, 13 ) ( 12, 0 ) ( 11, 15 ) ( 10, 10 )
+
+void testShellAddMsg(): Assertion `ret' failed.
+( 14, 0 ) ( 13, 13 ) ( 12, 12 ) ( 11, 11 ) ( 10, 10 )
+
+testCopyMsgOps(): Assertion `ret' failed.
+( 5, 5 ) ( 4, 4 ) ( 3, 3 ) ( 2, 2 ) ( 1, 5 )
+
+Also had a several more cases where readbuf was odd sized: it was 1
+in all of these cases.
+
+So what it looks like is that the bad getVec values can be either
+just zeros, or can also be scrambled indices. Also we tend to get
+just one or two bad values in any given case.
+Note that we are _not_ getting outrageous values that we would
+expect from a bad pointer. Looks more like misplaced good values.
+
+In the initAck/waitForAck pair on a single node with many
+threads, is it possible to return before all threads are done?
+If so, we may simply need to defer the ack from the getVec till
+all entries are in...
+============================================================================
+28 Feb
+Putting in an additional test on getVec to ensure all entries come in.
+I wonder if it might be good to have for the regular 'get' call.
+As I suspected: it tends to hang. The problem in this test case is that
+retEntries is bigger than the number that are supposed to come back.
+Tracked it down. The problem is that we use dataHandler::totalEntries
+to get the retEntries. However, the number of used entries is frequently
+smaller than totalEntries. Additionally, totalEntries itself needs a 
+complicated call to fill up. So we would like a self-correcting way of 
+keeping track of the arrival of all getVec values.
+
+Options:
+	- for getVec, call another function to look up # of entries on 
+	each node (localEntries) and compare that with the # that have 
+	already come in.
+	Strictly speaking, it should be enough to do another get/return 
+	sequence to guarantee that all have come in.
+	This is hard to set up because we don't know what would be a suitable 
+	second fid to use to send the second message.
+	- Put the # of expected entries on the ack itself.
+	This is certainly doable. The Assignment vec knows how many have
+	gone out and can return the total. But it would expand the API.
+	Also will need to subclass AssignGetVecMsg off AssignVecMsg to
+	do special things in the exec function. Tedious.
+	- Alter the AssignVecMsg returns so that it returns the # on each node
+	as part of the returned fields. This is messy and won't add anything
+	to the previous option.
+	- I can set up a dummy function for the Get and GetVec functions
+	to call to wind up the threads.
+	- I can wait for the ack in a single-thread (barrier) region of
+	execution, so that all the threads are done. Has to be barrier3
+	since we need all nodes in.
+
+Also need to do something similar for assignment msg: we really need
+to guarantee that a value has come back before carrying on.
+
+
+Implemented something like the last option: I made a variant on the
+waitForAck function that forces another cycle through Process.
+
+In 32 cycles of "./moose -c 11" these are the outcomes:
+testShellAddMsg:		5 failures (all off values returned by getVec)
+Msg.cpp m < msg_.size()		2 failure (Q entry was odd sized here).
+segv				1 failure
+
+No improvement.
+
+Need to verify that it is indeed doing another cycle.
+
+============================================================================
+1 March
+Verified: Another cycle is happening.
+Furthermore, verified that the whole list gets done in the first cycle, I
+don't see any exceptions.
+Also managed to get the thing to fail despite the getVec having returned
+all the values:
+
+...
+Shell::waitForGetAck: # getVecReturns = (0, 5, 5)
+Shell::waitForGetAck: # getVecReturns = (0, 5, 5)
+moose: testShell.cpp:808: void testShellAddMsg(): Assertion `ret' failed.
+( 3, 3 ) ( 3, 3 ) ( 3, 3 ) ( 3, 0 ) ( 3, 0 ) Abort
+
+So on both counts it looks like the error is not the # of data packets put in
+the queue, but either in their contents, or how they are read.
+
+OK, more clues. I replicated the segv, seems like some getBuf_ entries
+have not been allocated (are 0x0). Others are fine.
+
+Revisited the printf debug, and this time there is a clear shortfall in # of 
+entries come into the getBuf_, despite the extra pthread_cond_wait. Looked
+at the logic of it more closely, and there is a possible flaw. Redid.
+
+20 tries of ./moose -c 11:
+Failed exit			1 failure
+segv				1 failure. Informative. Looks like
+	the # of incoming entries was OK, but one was duplicated.
+Another segv was confusing. Printfs all over the place.
+Yet another suggests that despite all my efforts, we still have not 
+	recieved all the inputs.
+
+Implemented a -q option to get MOOSE to quit rather than go to command line
+after execution. Used to run a loop to test the failures.
+ 
+set i = 0
+while ( $i < 40 )
+while? echo $i
+while? echo $i >> zug
+while? ./moose -c 11 -q >> zug
+while? @ i = $i + 1
+while? end
+
+Outcome: 
+Segvs: 4
+Assertions on returned getVec: 2
+
+Modified a bit so I can track # of returned values in case segvs are due to
+too few returned entries.
+In this run of 40 tries, I get 4 segvs. In two of them the # of reported
+acks is 15, not 5. Rest seem OK.
+
+Did again with a cleaned up test, traps the likely segvs with an assertion.
+In 40 turns there are 7 traps:
+
+Shell::waitForGetAck: #= 4
+( 0, 1) ( 1, 0x0)       ( 2, 3) ( 3, 4) 
+
+Shell::waitForGetAck: #= 5
+( 0, 3) ( 1, 1) ( 2, 2) ( 3, 0x0)       ( 4, 4) 
+
+Shell::waitForGetAck: #= 3
+( 0, 0x0)       ( 1, 4) ( 2, 0x0)       
+
+Shell::waitForGetAck: #= 5
+( 0, 1) ( 1, 2) ( 2, 0x0)       ( 3, 4) ( 4, 5) 
+
+Shell::waitForGetAck: #= 5
+( 0, 1) ( 1, 2) ( 2, 3) ( 3, 0x0)       ( 4, 5) 
+
+Shell::waitForGetAck: #= 15
+( 0, 0) ( 1, 4) ( 2, 0) ( 3, 0) ( 4, 0x0)       ( 5, 0x0)       ( 6, 0x0)       ( 7, 0x0)       ( 8, 0x0)       ( 9, 0x0)       ( 10, 0x0)      ( 11, 0x0)      ( 12, 0x0)      ( 13, 0x0)      ( 14, 0x0)      
+
+Shell::waitForGetAck: #= 5
+( 0, 0x0)       ( 1, 3) ( 2, 0) ( 3, 3) ( 4, 3) 
+
+So that summarizes the problem. As there have been many changes, we
+checkin this version. Checkin 2486.
+
+Printing debug messagesfor each thread to ensure it goes around
+event loop. It does. But! Many instances of the same
+threadIndexInGroup being used more than once. So often that I 
+wonder how the calculations ever work.
+
+Clue: There are always 12 calls to eventLoopForBcast.
+There are 11 threads.
+But, there are a couple of other Groups. Let's print those.
+No, we're always in Group 1.
+Here is an example:
+another Cycle in shellEventLoop
+2:1  another Cycle in eventLoopForBcast
+1:1  another Cycle in eventLoopForBcast
+3:1  another Cycle in eventLoopForBcast
+4:1  another Cycle in eventLoopForBcast
+5:1  another Cycle in eventLoopForBcast
+6:1  another Cycle in eventLoopForBcast
+7:1  another Cycle in eventLoopForBcast
+8:1  another Cycle in eventLoopForBcast
+7:1  another Cycle in eventLoopForBcast
+8:1  another Cycle in eventLoopForBcast
+9:1  another Cycle in eventLoopForBcast
+10:1  another Cycle in eventLoopForBcast
+
+Note that here 7 and 8 are repeated twice, and 0 is missing.
+
+OK, I see it, and also the reason why this has not worked. The flag
+(Shell::anotherCycleFlag_) is set on a thread (shellEventLoop) that is
+running in parallel with the eventLoop threads. It may get set before
+one of the others has had time to stop at the barrier; and it may remain
+set while one of the others loops around the barrier again.
+I think I will have to move the test for blocking parser calls into
+barrier3, which is the only place where the worker threads are cleared.
+
+============================================================================
+2 March
+First: let's force it to do two cycles through the loop.
+
+In 40 turns there are 7 fails:						# fail
+ShellThreads.cpp:110: Shell::waitForGetAck():	4
+Msg.cpp: m< msg_size()				3
+
+So the numbers are unchanged. Looks like the problem isn't in handling
+incoming entries, but in sending them.
+Tried to look at Qinfo::reportQ(): Q is empty at the point of segv.
+
+Could do a printf on AssignVecMsg::exec inner loop to be sure it is
+calling Op for all index entries. This should be OK...
+
+Check that Op itself does the right thing wrt sending data.
+
+Possible issue here: OpFunc.cpp:fieldOp uses the Shell::procInfo(),
+not the individual procInfos that are thread safe.
+
+After much fiddling, I have fixed it so that the fieldOps send data back
+into the thread that handles the call. It works! 
+In 40 runs of ./moose -c 11 there is just 1 segv, this happens before 
+any of the calls that test getVec.
+
+The current implementation leaves the single 'get' call to be done using
+the default ProcInfo for the shell. I think this too may be causing
+these (rare) problems.
+
+Also should now go back and see if the cond_wait is needed after all.
+Checkin 2487.
+
+First stop: put in an equivalent procInfo handler for regular Gets, for
+testing purposes. This is just for testing purposes as it will slow down
+operations in real use. There are a couple of ways to avoid the slow down
+should the test work: 
+	- Add ProcInfo argument to ops
+	- Add a special message for single 'get' calls.
+
+Test was good for 50 cycles, then on 51 it stalled presumably at the
+automatic quit. Then it ran again for 37 cycles before stalling.
+Then 68. So distinct progress but there is still a stall.
+
+Looked at the diagnostics file. It seems to go all the way through
+and stop just before printing out the note about the regression
+tests.
+
+Also got an assertion fail in testMultiNodeIntFireNetwork().
+Rerunning with some printfs so I can pin down where the stall failure 
+happens. This goes cleanly through 120 runs without error.
+
+Recompiled with a new option to do unit tests with optimization.
+Compiles, runs, but I don't see the occasional stall with 80 runs.
+
+Can I now go back to multinode work?
+============================================================================
+3 March.
+Since this has caused so much trouble, I will first set up to run some heavier
+tests on the big multicore machines: gj and ghevar. If it clears all those then
+proceed to MPI build. Checkin 2488.
+
+Here is an error from gj:
+17
+moose: testBuiltins.cpp:307: void testGetMsg(): Assertion `numEntries == 101' failed.
+Abort
+
+But ghevar was clear for the first 40.
+
+These tests were for 11 threads. Redoing now with 17:
+
+ghevar: Stalled after 5, no diagnostics. Then reran and it got to 6 and stalled.
+Then reran and it got to 16 and stalled. At this point I remembered that the
+script dumps output to a file, checked that. Seems like the code dies at the
+joinThreads in main.cpp; well after all the unit tests. Next cycle only 0,
+stalled same place. Next cycle 5, stalled same place. QED.
+
+gj: Marched through all 40 without problems. Then another set of 40 also OK.
+
+Summary: Most of the bugs seem clear, but there is some problem with clean
+closing of threads.
+
+Looked at this, managed to trap it on ghevar once. This happens when
+one of the threads has gotten into barrier1, while the rest are waiting on 
+barrier3. The master thread waits in pthread_join.
+Also managed to catch a crash on testBuiltins.cpp:300:testBuiltinsProcess.
+which calls shell->doReinit(). It goes in Shell::waitForAck:69, which is a
+pthread_cond_wait.
+
+I'm not sure what to do with these. I tried many many more cycles to repeat
+either one, and it did not oblige. 
+
+Proceeding with MPI compilation. 
+doing: mpirun -np 2 ./moose -c 1
+Immediate, reproducible crash in Shell::waitForGetAck(). 
+A GetVec is only seeing 2 values, and at least one is bad.
+Control: works fine with ./moose -c 11 -q
+
+Odd issue: AssignGetVecMsg is not compiled in. Maybe I should remove it, I
+don't think it is actually used.
+
+One clue: The crash in waitForGetAck expects exactly as many returns
+as there are nodes. Doesn't worry about # of threads per node.
+
+Tracked it down by multiple layers of printfs. Turns out to be a simple
+'get' call on the root element (for its path). I think that each node is
+sending in a response (clue above). Need to find a way to restrict such
+calls so they stay on the local node.
+
+This fixes this bug. Now the MPI stuff goes on till the old problem, where
+we have to count synapses across nodes.
+Checkin 2489.
+
+Cleaned up lots of printf debugging. Checkin 2490.
+
+Progressed a bit. Now the issue is set/get of weights into the
+array of synapses. Looks like values put in are not the same as those
+read out. 
+
+fdh->syncFieldArraySize at line 887 doesnt assign field values
+except on current node.
+
+In the throes of fixing. Problem points:
+
+Shell::doSyncDataHandler: should have different args. Did skel code
+Shell::doSyncDataHandler: should call setFieldDimension on all nodes.
+testScheduling.cpp:653 Putting in Shell::doSyncDataHandler.
+
+============================================================================
+
+4 March.
+The IntFire isn't setting up a ReduceFinfo to handle the updates on the
+Synapse dimension.
+
+Tracked things down. The Shell::doSyncDataHandler directly deals with the
+object, first doing the reduce, then using the returned value to set 
+a new Neutral::fieldDimension value field.
+
+Now it clears the tests for weight assignments across nodes and synapses.
+Assertion failure at the output of the calculation. Checkin 2491.
+
+A closer look at the output shows that the weights still are not right. It
+just isn't doing an assertion check on them. testScheduling.cpp:700
+
+
+Printing out lots of the data to show the point at which the extracted field
+values disagree with what was stored. It is identical up to the halfway
+point (so that would be objects decomposed onto node0). Then it starts out
+at the position for the second half, with zero entries 
+(hence, no values put where they should go), and when the values do start
+coming they are not the ones expected there.
+Suggests something bad with indexing in DataHandler. What is odd is that it
+isn't symmetric: whatever wrong indexing put in a value, should also be
+apparent when we read out the value. Except that the readout is indexed
+by the object linear index due to the way we have each entry send out its
+value with a field index.
+
+Let's see if I have some unit tests for DataHandler node decomposition.
+Nope. So setting them up in testAsync.cpp.
+============================================================================
+
+5 March
+Made unit tests for OneDim and Field DataHandlers, especially with regard
+to their iterators and how. Looks good. Checkin 2492.
+
+Given that I now am sure about what goes on with these, why do we still
+get bad weight sequences in the unit test testMultiNodeIntFireNetwork()?
+
+I'll printf debug the info in the DataHandlers on each node.
+
+Checked: The values that come into Shell::recvGet are correctly
+	handled. Indices and data values match with the read-out from
+	getVec. So the error is upstream of this.
+Checked: The start index on the stuff coming into Shell::recvGet
+	is correct. That is, there is the right gap of a number of index
+	values that are empty.
+Checked: The indices on stuff coming into the AssignVecMsg.
+	This is in progress. Now it is not printing out node#
+
+Found problem, probably underlies other issues. The fieldDimension has not
+been set on node 1. The 'set' command needs to figure out when a field is
+global even if the object is not. Tricky.
+
+I really need to keep track of three kinds of fields:
+- Regular ones, which are on the objects, which are on the elements.
+	These are global or not depending on whether the DataHandler is.
+- Element fields, which are on the Elements and are therefore global
+	regardless of the DataHandler
+	Actually such fields are already done as ElementValueFinfo.
+	Need to avoid sending a response from the get operations unless they
+	are on node 0. This was done in OpFunc.cpp:skipWorkerNodeGlobal,
+	but that will need to be extended.
+	However, do need to call the 'set' operations on all nodes.
+- Shared Data fields, which are a category I haven't implemented yet. These are
+	fields of which one instance exists for each Element, regardless
+	of how big the object array is. To some extent the extended fields
+	(which are child elements) do this job.
+
+Implemented a really disgusting hack: The ElementFields are all on Neutral,
+and they are the first few. Assuming all classes derive from Neutrals, it is
+easy to identify functions from ElementFields by their fids. I've just put
+in a test for ( q->fid < 12 ) and it works. That is, it clears the test for
+getting weights across nodes. Checkin 2493.
+
+Nowit clears the critical testMultiNodeIntFireNetwork. Still has trouble,
+but later. Checkin 2494.
+
+============================================================================
+6 March 2011
+The crash was in testThreadIntFireNetwork, and it was simply
+that this test was strictly single-node: it created Elements locally.
+
+Looking to compare funcitonality of testThreadIntFireNetwork and
+testMultiNodeIntFireNetwork. They are equivalent, it is just that the first
+uses local Element and Msg creation calls, but the latter uses the proper 
+Shell API. So I've just set up a check that bypasses the 
+testThreadIntFireNetwork when the simulator is running on more than one node.
+
+One issue is that of random seeds across nodes. I need to be able to
+seed all nodes equivalently.
+The testMultiNodeIntFireNetwork simply comments out the mtseed call,
+but uses the cleaner function for setting the seed during the
+"setRandomConnectivity" call to the SparseMsg Manager that defines
+the connections. So seeds are OK.
+
+Now clears this test, but dies a bit later in testBuiltins.cpp:testFibonacci.
+Checkin 2495.
+
+Looked at testFibonacci. Same issue: need to use the ShellAPI to get this
+to behave on multiple nodes. I'll do the test for multinode operation here too.
+I already have a testMpiFibonacci in place. Unfortunately it needs some fixes
+itself.
+
+Should go through and fix all Set/Get calls to use FullIds rather than Erefs.
+This is needed as the calls are API functions and work across nodes.
+
+Should make getVec always do the whole vec, not requiring the DataId::any.
+In fact it should take the Id as the argument so there is no question of 
+specifying the DataId.
+
+For now, still going through crashes with MPI.
+Fixed testMpiFibonacci.
+Latest problem is with testStatsReduce, which is also
+a single-node specific function.
+Put in a test for numNodes, now unit tests clear. Need to go
+back and put in an MPI version, but 
+THIS IS THE FIRST FULL VERSION THAT CLEARS ALL TESTS WITH THREADING AND MPI.
+
+Checkin 2496.
+
+Implemented the MPI version, testMpiStatsReduce. Works with up to
+4 cores X 4 nodes.
+Checkin 2497.
+
+Converted argument in getVec to an Id. First step in a long process to convert
+all the SetGet calls to Ids. Compiles, clears unit tests.
+Checkin 2498.
+
+Doing valgrind. Not happy. The MsgManagers need to be cleaned out.
+Did that. There is still stuff leaking. I think I need to clear some of the
+getBuffers in the final throes of destroying the Shell.
+
+That helps too, but still losing memory. Try doing single-threaded.
+That didn't work, it wasn't really single. I think there are just some things
+created in the unit tests that don't get deleted.
+
+./moose -s hangs, that would have been the way to find the leaks.
+Tried to fix the hang, that made the threaded code crash. Commented it out.
+
+Shouldn't get bogged down here. It is important to fix this, but more important
+to get the base code ready for the big API merge. 
+
+Checkin 2499.
+
+Converted argument in setVec and setRepeat to an Id. Compiles, clears unit
+tests.
+
+Brahma said: Well, after hearing ten thousand explanations, a fool is no
+wiser.  But an intelligent man needs only two thousand five hundred.
+                -- The Mahabharata
+
+Checkin 2500.
+
+Still need to convert the basic set and get calls to use Ids.
+
+When I get in to the lab, I need to run the multinode stuff
+on gj to see how it scales.
+Also need to build a really big regression test for multinode runs.
+
+Documentation.
+For python:
+	API: Shell::do<name> commands
+	SetGet
+	Traversal fields from Neutral
+	Wildcard operations
+For making new classes:
+	Example class
+	List and description of Finfos
+	Explanation of Cinfo usage.
+For making new solvers:
+	Example ksolve
+	Zombie principles.
+
+Need better name for FullId, whose short form confuses with FuncId
+ObjId (oid) :	OK but the FullId Goes beyond object to field Object.
+Considered several others, but ObjId it is.
+
+Used Id names are:
+fid: FuncId
+id: Element Id.
+did: DataId
+mid: MsgId
+Possibly confusing one is cid, for Cinfo Id (though it isn't used)
+oid: ObjId.
+
+Made the change. Simple but tedious as it affects many files.
+Checkin 2501
+
+Working on eliminating Erefs from SetGet. As expected, vast
+numbers of files need to be fixed. Mostly compiles through basecode now,
+currently done midway through testAsync.cpp.
+
+============================================================================
+7 March 2011
+Because of the huge number of changes, I'm putting in a mid-stream checkin
+as the SetGet changes work through the compilation process. Checkin 2502.
+
+Now through basecode, msg and working on compilation through shell.
+Checkin 2503
+
+More compilation, now through scheduling and builtins. Checkin 2504.
+
+More compilation, now done and clears unit tests. Checkin 2505.
+
+Tried regression tests. Turns out that GSL is not compiled with this. 
+Fixed compilation flags, recompiled. Now it clears regression tests too.
+Checkin 2506.
+
+Ran on ghevar (8/16 thread Intel Nehalem) and gj (4-core Opteron).
+Ghevar crashes when run with more than 6 nodes (mpirun -np 6 ./moose -c 1 ).
+It is perfectly happy doing mpirun -np 6 ./moose -c 8 for a total of 48 
+processes.
+
+gj is happy up to 4 'nodes', then hangs for more.
+
+These seem to be different issues.
+Fixed the issue on ghevar: it was an invalid check on # entries on a local
+dataHandler, in testMultiNodeIntFireNetwork(). Now works, and ghevar
+has just done 32 simulated nodes. 
+Checkin 2507.
+This is the reference codebase I think for bringing the versions back
+together.
+
+Set off on gj with 48 nodes x 4 cores. This went very slowly indeed, 
+and it failed with the Sparse matrix transpose.
+
+Tried again on gj with 48 nodes x 1 cores. This went very slowly too, 
+and it also failed with the Sparse matrix transpose.
+
+To run it on gj:
+/usr/local/mvapich2/bin/mpirun -np 48 ./moose
+
+Before that, to start up mpi: source start_63_mpd
+To check if it is running on all nodes: mpdtrace
+To clean up the mess: source kill_mpd.
+
+
+

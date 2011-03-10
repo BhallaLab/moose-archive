@@ -41,42 +41,48 @@ Qinfo::Qinfo( FuncId f, DataId srcIndex, unsigned int size, bool useSendTo )
 	:	
 		useSendTo_( useSendTo ), 
 		isForward_( 1 ), 
-		isDummy_( 0 ), 
+		// isDummy_( 0 ), 
 		m_( 0 ), 
 		f_( f ), 
 		srcIndex_( srcIndex ),
-		size_( size )
+		size_( size ),
+		procIndex_( 0 )
 {;}
 
 Qinfo::Qinfo( DataId srcIndex, unsigned int size, bool useSendTo )
 	:	
 		useSendTo_( useSendTo ), 
 		isForward_( 1 ), 
-		isDummy_( 0 ), 
+		// isDummy_( 0 ), 
 		m_( 0 ), 
 		f_( 0 ), 
 		srcIndex_( srcIndex ),
-		size_( size )
+		size_( size ),
+		procIndex_( 0 )
 {;}
 
 Qinfo::Qinfo()
 	:	
 		useSendTo_( 0 ), 
 		isForward_( 1 ), 
-		isDummy_( 0 ), 
+		// isDummy_( 0 ), 
 		m_( 0 ), 
 		f_( 0 ), 
 		srcIndex_( 0 ),
-		size_( 0 )
+		size_( 0 ),
+		procIndex_( 0 )
 {;}
 
 /// Static function
+// deprecated
+/*
 Qinfo Qinfo::makeDummy( unsigned int size )
 {
 	Qinfo ret( 0, size, 0 ) ;
-	ret.isDummy_ = 1;
+	// ret.isDummy_ = 1;
 	return ret;
 }
+*/
 
 /**
  * Static func: Sets up a SimGroup to keep track of thread and node
@@ -227,6 +233,11 @@ void readBuf(const Qvec& qv, const ProcInfo* proc )
 			}
 		}
 		buf += sizeof( Qinfo ) + qi->size();
+		if ( qi->size() % 2 != 0 ) {
+			cout << proc->nodeIndexInGroup << "." << 
+				proc->threadIndexInGroup << ": readBuf is odd sized: " <<
+				qi->size() << endl;
+		}
 	}
 }
 
@@ -462,12 +473,24 @@ void Qinfo::addToQbackward( const ProcInfo* p, MsgFuncBinding b,
 	(*outQ_)[p->groupId].push_back( p->threadIndexInGroup, this, arg );
 }
 
+/// Static func.
+void Qinfo::disableStructuralQ()
+{
+	isSafeForStructuralOps_ = 1;
+}
+
+/// static func
+void Qinfo::enableStructuralQ()
+{
+	isSafeForStructuralOps_ = 0;
+}
+
 /**
  * This is called by the 'handle<op>' functions in Shell. So it is always
  * either in phase2/3, or within clearStructuralQ() which is on a single 
  * thread inside Barrier1.
  * Note that the 'isSafeForStructuralOps' flag is only ever touched in 
- * clearStructuralQ().
+ * clearStructuralQ(), except in the unit tests.
  */
 bool Qinfo::addToStructuralQ() const
 {
@@ -564,8 +587,6 @@ void Qinfo::addToReduceQ( ReduceBase* r, unsigned int threadIndex )
 	unsigned int threadIndex )
 	*/
 {
-	cout << Shell::myNode() << ": addToReduceQ on threadindex " <<
-		threadIndex << ", size = " << reduceQ_.size() << endl;
 	reduceQ_[ threadIndex ].push_back( r );
 }
 
@@ -622,4 +643,16 @@ void Qinfo::clearReduceQ( unsigned int numThreads )
 		}
 		reduceQ_[j].resize( 0 );
 	}
+}
+
+void Qinfo::setProcInfo( const ProcInfo* p )
+{
+	procIndex_ = p->procIndex;
+}
+
+const ProcInfo* Qinfo::getProcInfo() const
+{
+	Eref sheller = Id().eref();
+	const Shell* s = reinterpret_cast< const Shell* >( sheller.data() );
+	return s->getProcInfo( procIndex_ );
 }

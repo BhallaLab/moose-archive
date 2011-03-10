@@ -120,6 +120,8 @@ void innerCopyMsgs( map< Id, Id >& tree, unsigned int n, bool copyExtMsgs )
 	}
 }
 
+// #define CHECK_TREE
+
 void Shell::handleCopy( const Eref& er, const Qinfo* q,
 	vector< Id > args, string newName,
 	unsigned int n, bool copyExtMsgs )

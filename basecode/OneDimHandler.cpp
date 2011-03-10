@@ -11,10 +11,6 @@
 #include "AnyDimGlobalHandler.h"
 #include "AnyDimHandler.h"
 
-#include "ReduceBase.h"
-#include "ReduceMax.h"
-#include "../shell/Shell.h"
-
 OneDimHandler::OneDimHandler( const DinfoBase* dinfo )
 		: OneDimGlobalHandler( dinfo ), 
 			start_( 0 ), end_( 0 )
@@ -138,14 +134,32 @@ char* OneDimHandler::data( DataId index ) const
 	return 0;
 }
 
+	/*
 bool OneDimHandler::nodeBalance( unsigned int size )
 {
+	return nodeBalance( size, Shell::myNode(), Shell::numNodes() );
 	unsigned int oldsize = size_;
 	unsigned int oldstart = start_;
 	unsigned int oldend = end_;
 	size_ = size;
 	start_ = ( size * Shell::myNode() ) / Shell::numNodes();
 	end_ = ( size * ( 1 + Shell::myNode() ) ) / Shell::numNodes();
+	return ( size != oldsize || oldstart != start_ || oldend != end_ );
+}
+	*/
+
+bool OneDimHandler::innerNodeBalance( unsigned int size,
+	unsigned int myNode, unsigned int numNodes )
+{
+	unsigned int oldsize = size_;
+	unsigned int oldstart = start_;
+	unsigned int oldend = end_;
+	size_ = size;
+	start_ = ( size * myNode ) / numNodes;
+	end_ = ( size * ( 1 + myNode ) ) / numNodes;
+
+	// cout << "OneDimHandler::innerNodeBalance( " << size_ << ", " << start_ << ", " << end_ << "), fieldDimension = " << getFieldDimension() << "\n";
+
 	return ( size != oldsize || oldstart != start_ || oldend != end_ );
 }
 

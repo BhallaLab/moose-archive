@@ -50,9 +50,14 @@ void sendAckBack( const ProcInfo* p, MsgId mid, DataId i2 )
 void AssignmentMsg::exec( const char* arg, const ProcInfo *p ) const
 {
 	const Qinfo *q = ( reinterpret_cast < const Qinfo * >( arg ) );
+	Qinfo qtemp( *q );
+	qtemp.setProcInfo( p ); 
+	q = &qtemp;
+	// Tell the q which ProcInfo we are on. Used in 'get' calls
 
 	if ( q->isForward() ) {
-		if ( e2_->dataHandler()->isDataHere( i2_ ) &&
+		if ( ( e2_->dataHandler()->isDataHere( i2_ ) || 
+			q->fid() < 12 ) && // Hack. There are 12 ElementFields.
 			p->execThread( e2_->id(), i2_.data() ) )
 		{
 			const OpFunc* f = e2_->cinfo()->getOpFunc( q->fid() );
@@ -78,15 +83,15 @@ Id AssignmentMsg::managerId() const
 	return AssignmentMsg::managerId_;
 }
 
-FullId AssignmentMsg::findOtherEnd( FullId f ) const
+ObjId AssignmentMsg::findOtherEnd( ObjId f ) const
 {
 	if ( f.id() == e1() ) {
-		return FullId( e2()->id(), i2_ );
+		return ObjId( e2()->id(), i2_ );
 	}
 	if ( f.id() == e2() ) {
-		return FullId( e1()->id(), i1_ );
+		return ObjId( e1()->id(), i1_ );
 	}
-	return FullId::bad();
+	return ObjId::bad();
 }
 
 /// Dummy. We should never be copying assignment messages.

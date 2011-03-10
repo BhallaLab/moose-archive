@@ -54,14 +54,14 @@ class Neutral
 		unsigned int getGroup( const Eref& e, const Qinfo* q ) const;
 
 		/**
-		 * Simply returns own fullId
+		 * Simply returns own ObjId
 		 */
-		FullId getFullId( const Eref& e, const Qinfo* q ) const;
+		ObjId getObjId( const Eref& e, const Qinfo* q ) const;
 
 		/**
 		 * Looks up the full Id info for the parent of the current Element
 		 */
-		FullId getParent( const Eref& e, const Qinfo* q ) const;
+		ObjId getParent( const Eref& e, const Qinfo* q ) const;
 
 		/**
 		 * Looks up all the Element children of the current Element
@@ -85,6 +85,13 @@ class Neutral
 		string getClass( const Eref& e, const Qinfo* q ) const;
 
 		/**
+		 * Access function for the fieldDimension of the data handler
+		 * for the Element. Ignored for objects that are not Fields.
+		 */
+		void setFieldDimension( const Eref& e, const Qinfo* q, unsigned int val );
+		unsigned int getFieldDimension( const Eref& e, const Qinfo* q ) const;
+
+		/**
 		 * Destroys Element and all children
 		 */
 		void destroy( const Eref& e, const Qinfo* q, int stage );
@@ -101,7 +108,7 @@ class Neutral
 		 */
 		static vector< Id > children( const Eref& e );
 
-		static FullId parent( const Eref& e );
+		static ObjId parent( const Eref& e );
 
 		/**
 		 * Checks if 'me' is a descendant of 'ancestor'

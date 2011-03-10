@@ -62,13 +62,61 @@ void Shell::initAck()
 void Shell::waitForAck()
 {
 	if ( isSingleThreaded_ ) {
+		while ( isAckPending() ) {
+			Qinfo::clearQ( &p_ );
+	// Tried this to get it to work in single-thread mode. Doesn't work.
+	// Also causes problems by setting the size of Qinfo::reduceQ in
+	// Qinfo::clearReduceQ
+	//		Clock::checkProcState();
+		}
+	} else {
+		while ( isAckPending() )
+			pthread_cond_wait( parserBlockCond_, parserMutex_ );
+		isBlockedOnParser_ = 0;
+		pthread_mutex_unlock( parserMutex_ );
+	}
+}
+
+/**
+ * test for completion of request, after a full cycle. Used for get and
+ * getVec calls where we may have the ack come before the data on
+ * the first cycle.
+ * This MUST be preceded by an initAck call.
+ */
+void Shell::waitForGetAck()
+{
+	if ( isSingleThreaded_ ) {
 		while ( isAckPending() )
 			Qinfo::clearQ( &p_ );
 	} else {
 		while ( isAckPending() )
 			pthread_cond_wait( parserBlockCond_, parserMutex_ );
 		isBlockedOnParser_ = 0;
+		// Now we have cleared the first cycle in the shellEventLoop.
+		// The mutex is now locked again.
+		// So we wait to go around again:
+		anotherCycleFlag_ = 2;
+		while ( anotherCycleFlag_ > 0 )
+			pthread_cond_wait( parserBlockCond_, parserMutex_ );
 		pthread_mutex_unlock( parserMutex_ );
+		/*
+		** This was here for debugging.
+		if ( numGetVecReturns_ > 1 ) {
+			cout << myNode_ << ": Shell::waitForGetAck: #= " << numGetVecReturns_ << endl << flush;
+			bool isBad = 0;
+			for ( unsigned int i = 0; i < numGetVecReturns_; ++i ) {
+				if ( getBuf_[i] == 0 )  {
+					cout << "( " << i << ", 0x0)	";
+					isBad = 1;
+				} else {
+					cout << "( " << i << ", " << *reinterpret_cast< const double* >( getBuf_[i] ) << ")	";
+				}
+			}
+			cout << endl;
+			if ( isBad ) 
+				assert( 0 );
+		}
+		*/
 	}
 }
 
@@ -85,6 +133,8 @@ bool Shell::isAckPending() const
 /**
  * Generic handler for ack msgs from various nodes. Keeps track of
  * which nodes have responded.
+ * The value is used optionally in things like getVec, to return # of
+ * entries.
  */
 void Shell::handleAck( unsigned int ackNode, unsigned int status )
 {
@@ -226,6 +276,7 @@ void Shell::start( double runtime )
 // Functions using MPI
 ////////////////////////////////////////////////////////////////////////
 
+/*
 // Static function
 unsigned int Shell::reduceInt( unsigned int val )
 {
@@ -245,6 +296,7 @@ unsigned int Shell::reduceInt( unsigned int val )
 	return val;
 #endif
 }
+*/
 
 void Shell::handleSync( const Eref& e, const Qinfo* q, Id elm, FuncId fid )
 {

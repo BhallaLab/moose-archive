@@ -33,7 +33,8 @@ DataHandler* FieldDataHandlerBase::unGlobalize() const
 	return 0;
 }
 
-bool FieldDataHandlerBase::nodeBalance( unsigned int size )
+bool FieldDataHandlerBase::innerNodeBalance( unsigned int size,
+	unsigned int myNode, unsigned int numNodes )
 {
 	return 0;
 }
@@ -163,13 +164,16 @@ void FieldDataHandlerBase::setFieldArraySize(
 }
 
 /**
- * Looks up the size of the field array on the specified object
+ * Looks up the size of the local field array on the specified object
  */
 unsigned int FieldDataHandlerBase::getFieldArraySize( unsigned int objectIndex ) const
 {
 	assert( objectIndex < parentDataHandler_->totalEntries() );
-	char* pa = parentDataHandler_->data( objectIndex );
-	return getNumField( pa );
+	if ( parentDataHandler_->isDataHere( objectIndex ) ) {
+		char* pa = parentDataHandler_->data( objectIndex );
+		return getNumField( pa );
+	}
+	return 0;
 }
 
 /**
@@ -199,7 +203,7 @@ unsigned int FieldDataHandlerBase::biggestFieldArraySize() const
  * This func gets the FieldArraySize from all nodes and updates
  * fieldDimension to the largest.
  * MUST be called on all nodes in sync.
- */
+ * Deprecated
 unsigned int FieldDataHandlerBase::syncFieldArraySize()
 {
 	unsigned int ret = biggestFieldArraySize();
@@ -208,6 +212,7 @@ unsigned int FieldDataHandlerBase::syncFieldArraySize()
 		fieldDimension_ = ret;
 	return ret;
 }
+ */
 
 /**
  * Assigns the fieldDimension. Checks that it is bigger than the
@@ -218,6 +223,14 @@ void FieldDataHandlerBase::setFieldDimension( unsigned int size )
 	unsigned int i = biggestFieldArraySize();
 	assert( i <= size );
 	fieldDimension_ = size;
+}
+
+/**
+ * Returns fieldDimension
+ */
+unsigned int FieldDataHandlerBase::getFieldDimension( ) const
+{
+	return fieldDimension_;
 }
 
 /**

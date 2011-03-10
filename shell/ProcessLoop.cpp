@@ -79,6 +79,10 @@ void* eventLoopForBcast( void* info )
 
 		// This barrier handles the state transitions for clock scheduling
 		// as its internal protected function.
+			Shell* shell = reinterpret_cast< Shell* >( Id().eref().data() );
+			if ( shell->anotherCycleFlag_ ) {
+				// cout << p->threadIndexInGroup << ":" << p->groupId << "  another Cycle in eventLoopForBcast\n";
+			}
 		p->barrier3->wait();
 		// rc = pthread_barrier_wait( p->barrier3 );
 		// assert( rc == 0 || rc == PTHREAD_BARRIER_SERIAL_THREAD );
@@ -168,6 +172,14 @@ void* shellEventLoop( void* info )
 		// Shell group and thus is safe from the other threads.
 		pthread_mutex_lock( shell->parserMutex() );
 			p->barrier1->wait();
+
+			// Here we signal if the waitForGetAck has asked for another
+			// cycle, and that cycle is now complete.
+			if ( shell->anotherCycleFlag_ ) {
+				shell->anotherCycleFlag_ -= 1;
+				// cout << "\nanother Cycle in shellEventLoop\n";
+				pthread_cond_signal( shell->parserBlockCond() );
+			}
 			// We only want to signal if it is waiting, AND if
 			// we have gotten enough acks done. It is the job of the
 			// rest of the event loop to deal with the acks.
@@ -249,7 +261,9 @@ void Shell::launchThreads()
 		p[i].barrier1 = barrier1_;
 		p[i].barrier2 = barrier2_;
 		p[i].barrier3 = barrier3_;
+		p[i].procIndex = i;
 
+	// cout << myNode_ << "." << i << ": ptr= " << &( p[i] ) << ", Shell::procInfo = " << &p_ << " setting up procs\n";
 		if ( i < numCores_ ) { // These are the compute threads
 			int rc = pthread_create( threads_ + i, NULL, eventLoopForBcast, 
 				(void *)&p[i] );

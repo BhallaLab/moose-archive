@@ -28,6 +28,11 @@ class DataHandler
 		 * same type as an argument. This should allocate a copy
 		 * of the original data
 		 */
+
+
+		/**
+		 * The destructor has to destroy the data contents.
+		 */
 		virtual ~DataHandler();
 
 		/**
@@ -48,8 +53,20 @@ class DataHandler
 		 * Determines how to decompose data among nodes for specified size
 		 * Returns true if there is a change from the current configuration
 		 * Does NOT touch actual allocation.
+		 * This form of the function is just a front-end for the inner
+		 * function, as this talks to the Shell object to find node info.
 		 */
-		virtual bool nodeBalance( unsigned int size ) = 0;
+		bool nodeBalance( unsigned int size );
+
+		/**
+		 * Determines how to decompose data among nodes for specified size
+		 * Returns true if there is a change from the current configuration
+		 * Does NOT touch actual allocation.
+		 * This inner function is self-contained and is independent of the
+		 * Shell. Each subclass of DataHandler has to supply this.
+		 */
+		virtual bool innerNodeBalance( unsigned int size, 
+			unsigned int myNode, unsigned int numNodes ) = 0;
 
 		/**
 		 * For copy we won't worry about global status. 
@@ -158,6 +175,20 @@ class DataHandler
 		 */
 		virtual unsigned int getFieldArraySize( 
 			unsigned int objectIndex ) const;
+
+		/**
+		 * Access functions for the FieldDimension. Applicable for 
+		 * FieldDataHandlers, which typically manage a ragged array of 
+		 * field vectors, belonging to each object in the data array.
+		 * The FieldDimension provides a consistent range for indexing
+		 * into this ragged array, and it must be bigger than any of the
+		 * individual object array sizes.
+		 * non FieldDataHandlers return 0 as the dimension and ignore
+		 * the 'setFieldDimension' call.
+		 */
+		virtual void setFieldDimension( unsigned int size );
+		virtual unsigned int getFieldDimension() const;
+
 
 		 /**
 		  * Returns vector of dimensions.

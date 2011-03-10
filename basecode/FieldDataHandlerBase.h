@@ -24,7 +24,8 @@ class FieldDataHandlerBase: public DataHandler
 		DataHandler* globalize() const;
 		DataHandler* unGlobalize() const;
 
-		bool nodeBalance( unsigned int size );
+		bool innerNodeBalance( unsigned int size,
+			unsigned int myNode, unsigned int numNodes );
 
 		/// We don't implement the copy() func, left to the derived class
 		// DataHandler* copy() const
@@ -134,14 +135,16 @@ class FieldDataHandlerBase: public DataHandler
 
 		/**
 		 * This func gets the FieldArraySize from all nodes and updates
-		 */
+		 * Deprecated.
 		unsigned int syncFieldArraySize();
+		 */
 
 		/**
 		 * Assigns the fieldDimension. Checks that it is bigger than the
 		 * biggest size on this node.
 		 */
 		void setFieldDimension( unsigned int size );
+		unsigned int getFieldDimension() const;
 
 		/**
 		 * Returns true if the node decomposition has the data on the

@@ -29,6 +29,7 @@ class Shell
 {
 	public:
 		Shell();
+		~Shell();
 
 		///////////////////////////////////////////////////////////
 		// Field functions
@@ -39,10 +40,22 @@ class Shell
 		///////////////////////////////////////////////////////////
 		// Parser functions
 		///////////////////////////////////////////////////////////
+
+		/**
+		 * Create an Element. Returns its id.
+		 * type: Specifies classname of Objects in Element.
+		 * parent: Id of parent element
+		 * name: Name to be used for identifying Element.
+		 * dimensions: Size of array in any # of dimensions.
+		 */
 		Id doCreate( string type, Id parent, string name, 
 			vector< unsigned int > dimensions );
 
-		bool doDelete( Id i );
+		/**
+		 * Delete specified Element and all its children and all 
+		 * Msgs connected to it.
+		 */
+		bool doDelete( Id id );
 
 		/**
 		 * Sets up a Message of specified type.
@@ -51,13 +64,17 @@ class Shell
 		 * to pass to the specified msgType.
 		 */
 		MsgId doAddMsg( const string& msgType, 
-			FullId src, const string& srcField, 
-			FullId dest, const string& destField);
+			ObjId src, const string& srcField, 
+			ObjId dest, const string& destField);
 
+		/**
+		 * Cleanly quits simulation, wrapping up all nodes and threads.
+		 */
 		void doQuit( );
 
 		/**
-		 * Starts off simulation
+		 * Starts off simulation, to run for 'runtime' more than current
+		 * time.
 		 */
 		void doStart( double runtime );
 
@@ -82,7 +99,8 @@ class Shell
 		void doTerminate();
 
 		/**
-		 * shifts orig Element to newParent.
+		 * shifts orig Element (including offspring) to newParent. All old 
+		 * hierarchy, data, Msgs etc are preserved below the orig.
 		 */
 		void doMove( Id orig, Id newParent );
 
@@ -130,7 +148,7 @@ class Shell
 		 * The elm and fid specify the field containing the array size. The
 		 * tgt specifies the Element which has to be modified.
  		 */
-		void doSyncDataHandler( Id elm, FuncId fid, Id tgt );
+		void doSyncDataHandler( Id elm, const string& sizeField, Id tgt );
 
 		/**
 		 * Works through internal queue of operations that modify the
@@ -165,6 +183,14 @@ class Shell
 		void waitForAck();
 
 		/**
+		 * test for completion of 'Get' request. In multithread mode, 
+		 * we require the system to go through another process cycle 
+		 * to ensure that all return values have arrived.
+		 * Like the waitForAck(), we MUST precede this by an initAck call.
+		 */
+		void waitForGetAck();
+
+		/**
  		 * Generic handler for ack msgs from various nodes. Keeps track of
  		 * which nodes have responded.
  		 */
@@ -189,8 +215,8 @@ class Shell
 		 * success
 		 */
 		bool innerAddMsg( string msgType, MsgId mid,
-			FullId src, string srcField, 
-			FullId dest, string destField);
+			ObjId src, string srcField, 
+			ObjId dest, string destField);
 
 		/**
 		 * Connects src to dest on appropriate fields, with specified
@@ -199,8 +225,8 @@ class Shell
 		 */
 		void handleAddMsg( const Eref& e, const Qinfo* q,
 			string msgType, MsgId mid,
-			FullId src, string srcField, 
-			FullId dest, string destField);
+			ObjId src, string srcField, 
+			ObjId dest, string destField);
 
 		/**
 		 * Moves Element orig onto the newParent.
@@ -312,27 +338,28 @@ class Shell
 		 * the assignment mode to operate the appropriate innerSet 
 		 * function.
 		 */
-		void handleSet( Id id, DataId d, FuncId fid, PrepackedBuffer arg );
+		void handleSet( const Eref& e, const Qinfo*q,
+			Id id, DataId d, FuncId fid, PrepackedBuffer arg );
 
-		static void dispatchSet( const Eref& er, FuncId fid, 
+		static void dispatchSet( const ObjId& oid, FuncId fid, 
 			const char* args, unsigned int size );
 
-		static void dispatchSetVec( const Eref& er, FuncId fid, 
+		static void dispatchSetVec( const ObjId& oid, FuncId fid, 
 			const PrepackedBuffer& arg );
 
-		void innerDispatchSet( Eref& sheller, const Eref& er, 
+		void innerDispatchSet( Eref& sheller, const ObjId& oid, 
 			FuncId fid, const PrepackedBuffer& arg );
 
 		static const vector< char* >& dispatchGet( 
-			const Eref& tgt, const string& field, const SetGet* sg,
+			const ObjId& tgt, const string& field, const SetGet* sg,
 			unsigned int& numGetEntries );
 
 		const vector< char* >& innerDispatchGet( 
-			const Eref& sheller, const Eref& tgt, FuncId tgtFid,
+			const Eref& sheller, const ObjId& tgt, FuncId tgtFid,
 			unsigned int numGetEntries );
 
-		void handleGet( Id id, DataId index, FuncId fid, 
-			unsigned int numTgt );
+		void handleGet( const Eref& e, const Qinfo*q,
+			Id id, DataId index, FuncId fid, unsigned int numTgt );
 
 		void recvGet( const Eref& e, const Qinfo* q, PrepackedBuffer pb );
 
@@ -366,8 +393,11 @@ class Shell
 		/// Static func for returning the ProcInfo of the shell.
 		static const ProcInfo* procInfo();
 
+		const ProcInfo* getProcInfo( unsigned int index ) const;
+
 		/// Digests outcome of calculation for max index of ragged array
-		void digestReduceMax( const ReduceMax< unsigned int >* arg );
+		void digestReduceMax( 
+			const Eref& er, const ReduceMax< unsigned int >* arg );
 
 		/**
  		 * static func.
@@ -378,6 +408,13 @@ class Shell
 			char separator = '/' );
 
 		static void wildcard( const string& path, vector< Id >& list );
+
+		/**
+		 * Flag: True when the waitForGetAck has requested that the 
+		 * ProcessLoop go around one more time to harvest pending queue
+		 * entries from other threads.
+		 */
+		unsigned int anotherCycleFlag_;
 	private:
 		Element* shelle_; // It is useful for the Shell to have this.
 
@@ -394,6 +431,12 @@ class Shell
 		 */
 		bool gettingVector_;
 
+		/**
+		 * Counter, used by the 'get' subsystem in order to keep track of
+		 * number of returned values, especially for getVec.
+		 */
+		unsigned int numGetVecReturns_;
+
 		MsgId latestMsgId_; // Hack to communicate newly made MsgIds.
 
 		/**
@@ -408,6 +451,7 @@ class Shell
 		 * MPI connected nodes.
 		 */
 		bool isBlockedOnParser_;
+
 
 		/**
 		 * Number of CPU cores in system. Specifies how many working threads

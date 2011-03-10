@@ -34,7 +34,7 @@ void testKsolveZombify( string modelFile )
 	Id stoich = s->doCreate( "Stoich", base, "stoich", dims );
 	assert( stoich != Id() );
 	string temp = "/dend/##";
-	bool ret = Field<string>::set( stoich.eref(), "path", temp );
+	bool ret = Field<string>::set( stoich, "path", temp );
 	assert( ret );
 
 	/*
@@ -67,7 +67,7 @@ void testKsolveZombify( string modelFile )
 	Id stoich = s->doCreate( "Stoich", base, "stoich", dims );
 	assert( stoich != Id() );
 	string temp = "/model/##";
-	bool ret = Field<string>::set( stoich.eref(), "path", temp );
+	bool ret = Field<string>::set( stoich, "path", temp );
 	assert( ret );
 	*/
 	Id stoich = base;
@@ -75,8 +75,8 @@ void testKsolveZombify( string modelFile )
 	Id gsl = s->doCreate( "GslIntegrator", base, "gsl", dims );
 	/*
 	MsgId mid = s->doAddMsg( "Single", 
-		FullId( stoich, 0 ), "plugin", 
-		FullId( gsl, 0 ), "stoich" );
+		ObjId( stoich, 0 ), "plugin", 
+		ObjId( gsl, 0 ), "stoich" );
 	assert( mid != Msg::badMsg );
 
 	const Finfo* f = Stoich::initCinfo()->findFinfo( "plugin" );
@@ -93,9 +93,9 @@ void testKsolveZombify( string modelFile )
 	p.currTime = 0;
 
 	// plug->send( stoich.eref(), &p, stoichData );
-	bool ret = SetGet1< Id >::set( gsl.eref(), "stoich", stoich );
+	bool ret = SetGet1< Id >::set( gsl, "stoich", stoich );
 	assert( ret );
-	ret = Field< bool >::get( gsl.eref(), "isInitialized" );
+	ret = Field< bool >::get( gsl, "isInitialized" );
 	assert( ret );
 
 	s->doSetClock( 0, plotDt );
@@ -116,10 +116,10 @@ void testKsolveZombify( string modelFile )
 	if ( plotName.length() > 0 ) {
 		Id plotId( string( "/model/graphs/" ) + plotName );
 		assert( plotId != Id() );
-		bool ok = SetGet::strSet( plotId.eref(), "compareXplot",
+		bool ok = SetGet::strSet( plotId, "compareXplot",
 			modelName + ".plot,/graphs/" + plotName + ",rmsr" );
 		assert( ok );
-		double rmsr = Field< double >::get( plotId.eref(), "outputValue" );
+		double rmsr = Field< double >::get( plotId, "outputValue" );
 		assert( rmsr < TOLERANCE );
 	}
 

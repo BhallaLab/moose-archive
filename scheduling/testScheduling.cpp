@@ -49,7 +49,7 @@ void testTicks()
 	ProcInfo p;
 
 	MsgId m1 = shell->doAddMsg( "Single", 
-		FullId( tickId, 0 ), "proc0", FullId( arithId, 0 ), "proc" );
+		ObjId( tickId, 0 ), "proc0", ObjId( arithId, 0 ), "proc" );
 	// Qinfo::clearQ( &p );
 	assert( m1 != Msg::badMsg );
 
@@ -61,7 +61,7 @@ void testTicks()
 	assert( msgDests.size() == 1 );
 	assert( msgDests[0] == arithId );
 
-	bool ret = Field< double >::set( tickId.eref(), "dt", 5.0);
+	bool ret = Field< double >::set( tickId, "dt", 5.0);
 	assert( ret );
 
 	Tick* t0 = reinterpret_cast< Tick* >( tickId.eref().data() );
@@ -200,24 +200,24 @@ void setupTicks()
 	// cout << Shell::myNode() << ": numTicks: " << ticke->dataHandler()->totalEntries() << ", " << size << endl;
 	assert( ticke->dataHandler()->localEntries() == size );
 
-	Eref er0( ticke, DataId( 0, 2 ) );
+	ObjId er0( tickId, DataId( 0, 2 ) );
 	bool ret = Field< double >::set( er0, "dt", 5.0);
 	assert( ret );
-	Eref er1( ticke, DataId( 0, 1 ) );
+	ObjId er1( tickId, DataId( 0, 1 ) );
 	ret = Field< double >::set( er1, "dt", 2.0);
 	assert( ret );
-	Eref er2( ticke, DataId( 0, 0 ) );
+	ObjId er2( tickId, DataId( 0, 0 ) );
 	ret = Field< double >::set( er2, "dt", 2.0);
 	assert( ret );
-	Eref er3( ticke, DataId( 0, 3 ) );
+	ObjId er3( tickId, DataId( 0, 3 ) );
 	ret = Field< double >::set( er3, "dt", 1.0);
 	assert( ret );
-	Eref er4( ticke, DataId( 0, 4 ) );
+	ObjId er4( tickId, DataId( 0, 4 ) );
 	ret = Field< double >::set( er4, "dt", 3.0);
 	assert( ret );
 	// Note that here I put the tick on a different DataId. later it gets
 	// to sit on the appropriate Conn, when the SingleMsg is set up.
-	Eref er5( ticke, DataId( 0, 7 ) );
+	ObjId er5( tickId, DataId( 0, 7 ) );
 	ret = Field< double >::set( er5, "dt", 5.0);
 	assert( ret );
 
@@ -254,17 +254,17 @@ void setupTicks()
 	const SrcFinfo* sproc0 = dynamic_cast< const SrcFinfo* >( proc0 );
 	assert( sproc0 );
 	unsigned int b0 = sproc0->getBindIndex();
-	SingleMsg *m0 = new SingleMsg( Msg::nextMsgId(), er0, ts ); 
+	SingleMsg *m0 = new SingleMsg( Msg::nextMsgId(), er0.eref(), ts ); 
 	er0.element()->addMsgAndFunc( m0->mid(), f, 0 + b0 );
-	SingleMsg *m1 = new SingleMsg( Msg::nextMsgId(), er1, ts ); 
+	SingleMsg *m1 = new SingleMsg( Msg::nextMsgId(), er1.eref(), ts ); 
 	er1.element()->addMsgAndFunc( m1->mid(), f, 2 + b0 );
-	SingleMsg *m2 = new SingleMsg( Msg::nextMsgId(), er2, ts );
+	SingleMsg *m2 = new SingleMsg( Msg::nextMsgId(), er2.eref(), ts );
 	er2.element()->addMsgAndFunc( m2->mid(), f, 4 + b0 );
-	SingleMsg *m3 = new SingleMsg( Msg::nextMsgId(), er3, ts ); 
+	SingleMsg *m3 = new SingleMsg( Msg::nextMsgId(), er3.eref(), ts ); 
 	er3.element()->addMsgAndFunc( m3->mid(), f, 6 + b0 );
-	SingleMsg *m4 = new SingleMsg( Msg::nextMsgId(), er4, ts ); 
+	SingleMsg *m4 = new SingleMsg( Msg::nextMsgId(), er4.eref(), ts ); 
 	er4.element()->addMsgAndFunc( m4->mid(), f, 8 + b0 );
-	SingleMsg *m5 = new SingleMsg( Msg::nextMsgId(), er5, ts ); 
+	SingleMsg *m5 = new SingleMsg( Msg::nextMsgId(), er5.eref(), ts ); 
 	er5.element()->addMsgAndFunc( m5->mid(), f, 14 + b0 );
 
 	cdata->rebuild();
@@ -385,6 +385,13 @@ void testThreadIntFireNetwork()
 	unsigned int size = 1024;
 	string arg;
 
+	/**
+	 * Cannot run this function on multiple nodes as it does low-level
+	 * Element and Msg creation.
+	 */
+	if ( Shell::numNodes() != 1 ) // Cannot run this function on multinodes
+		return;
+
 	// Qinfo::mergeQ( 0 );
 
 	mtseed( 5489UL ); // The default value, but better to be explicit.
@@ -396,7 +403,6 @@ void testThreadIntFireNetwork()
 	assert( t2 );
 
 	Eref e2 = i2.eref();
-	// FieldElement< Synapse, IntFire, &IntFire::synapse > syn( sc, i2(), &IntFire::getNumSynapses, &IntFire::setNumSynapses );
 	Id synId( i2.value() + 1 );
 	Element* syn = synId();
 	assert( syn->getName() == "synapse" );
@@ -407,17 +413,6 @@ void testThreadIntFireNetwork()
 	DataId di( 1, 0 ); // DataId( data, field )
 	Eref syne( syn, di );
 
-	/*
-	unsigned int numThreads = 1;
-	if ( Qinfo::numSimGroup() >= 2 ) {
-		numThreads = Qinfo::simGroup( 1 )->numThreads;
-	}
-	*/
-	/*
-	bool ret = SparseMsg::add( e2.element(), "spike", syn, "addSpike", 
-		connectionProbability, numThreads ); // Include group id as an arg. 
-	assert( ret );
-	*/
 	SparseMsg* sm = new SparseMsg( Msg::nextMsgId(), e2.element(), syn );
 	assert( sm );
 	const Finfo* f1 = ic->findFinfo( "spike" );
@@ -425,11 +420,10 @@ void testThreadIntFireNetwork()
 	assert( f1 && f2 );
 	f1->addMsg( f2, sm->mid(), t2 );
 	sm->randomConnect( connectionProbability );
-	// sm->loadBalance( numThreads );
 
 	unsigned int nd = syn->dataHandler()->localEntries();
-//	cout << "Num Syn = " << nd << endl;
 	assert( nd == NUMSYN );
+
 	vector< double > initVm( size, 0.0 );
 	for ( unsigned int i = 0; i < size; ++i )
 		initVm[i] = mtrand() * Vmax;
@@ -440,17 +434,20 @@ void testThreadIntFireNetwork()
 	bool ret;
 
 	vector< double > temp( size, thresh );
-	ret = Field< double >::setVec( e2, "thresh", temp );
+	ret = Field< double >::setVec( i2, "thresh", temp );
 	assert( ret );
 	temp.clear();
 	temp.resize( size, refractoryPeriod );
-	ret = Field< double >::setVec( e2, "refractoryPeriod", temp );
+	ret = Field< double >::setVec( i2, "refractoryPeriod", temp );
 	assert( ret );
 	FieldDataHandlerBase* fd = dynamic_cast< FieldDataHandlerBase *>(
 		syn->dataHandler() );
 	assert( fd );
 	unsigned int fieldSize = fd->biggestFieldArraySize();
 	fd->setFieldDimension( fieldSize );
+	assert( fieldSize == 134 );
+	assert( fd->totalEntries() == size * 134 );
+
 	vector< double > weight( size * fieldSize, 0.0 );
 	vector< double > delay( size * fieldSize, 0.0 );
 	unsigned int numTotSyn = 0;
@@ -464,24 +461,10 @@ void testThreadIntFireNetwork()
 		}
 	}
 	assert ( numTotSyn == nd );
-	/*
-	vector< double > weight;
-	weight.reserve( nd );
-	vector< double > delay;
-	delay.reserve( nd );
-	for ( unsigned int i = 0; i < size; ++i ) {
-		unsigned int numSyn = syne.element()->dataHandler()->getFieldArraySize( i );
-		for ( unsigned int j = 0; j < numSyn; ++j ) {
-			weight.push_back( mtrand() * weightMax );
-			delay.push_back( mtrand() * delayMax );
-		}
-	}
-	assert( syne.element()->dataHandler()->totalEntries() == weight.size());
-	*/
 
-	ret = Field< double >::setVec( syne, "weight", weight );
+	ret = Field< double >::setVec( synId, "weight", weight );
 	assert( ret );
-	ret = Field< double >::setVec( syne, "delay", delay );
+	ret = Field< double >::setVec( synId, "delay", delay );
 	assert( ret );
 
 
@@ -493,7 +476,6 @@ void testThreadIntFireNetwork()
 	const Finfo* p2 = ic->findFinfo( "process" );
 	ret = p1->addMsg( p2, m->mid(), ticke );
 
-	// ret = SingleMsg::add( er0, "process0", e2, "process" );
 	assert( ret );
 
 	// printGrid( i2(), "Vm", 0, thresh );
@@ -502,7 +484,7 @@ void testThreadIntFireNetwork()
 	s->doSetClock( 0, timestep );
 	s->doReinit();
 
-	ret = Field< double >::setVec( e2, "Vm", initVm );
+	ret = Field< double >::setVec( i2, "Vm", initVm );
 	assert( ret );
 
 	IntFire* ifire100 = reinterpret_cast< IntFire* >( e2.element()->dataHandler()->data( 100 ) );
@@ -529,9 +511,6 @@ void testMultiNodeIntFireNetwork()
 	// Known value from single-thread run, at t = 1 sec.
 	static const double Vm100 = 0.0857292;
 	static const double Vm900 = 0.107449;
-	// static const double Vm100 = 0.10124059893763067;
-	// static const double Vm900 = 0.091409481280996352;
-	// static const unsigned int NUMSYN = 104576;
 	static const double thresh = 0.2;
 	static const double Vmax = 1.0;
 	static const double refractoryPeriod = 0.4;
@@ -541,33 +520,16 @@ void testMultiNodeIntFireNetwork()
 	static const double connectionProbability = 0.1;
 	static const unsigned int runsteps = 5;
 	static const unsigned int NUM_TOT_SYN = 104576;
-	// These are the starting indices of synapses on
-	// IntFire[0], [100], [200], ...
-	/*
-	static unsigned int synIndices[] = {
-		0, 10355, 20696, 30782, 41080,
-		51226, 61456, 71579, 81765, 92060,
-		102178,
-	};
-	*/
-	// static const unsigned int runsteps = 1000;
-	// const Cinfo* ic = IntFire::initCinfo();
-	// const Cinfo* sc = Synapse::initCinfo();
 	unsigned int size = 1024;
 	string arg;
 	Eref sheller( Id().eref() );
 	Shell* shell = reinterpret_cast< Shell* >( sheller.data() );
-
-	// Qinfo::mergeQ( 0 );
-
-	//mtseed( 5489UL ); // The default value, but better to be explicit.
 
 	vector< unsigned int > dims( 1, size );
 	Id i2 = shell->doCreate( "IntFire", Id(), "test2", dims );
 	assert( i2()->getName() == "test2" );
 	Eref e2 = i2.eref();
 
-	// FieldElement< Synapse, IntFire, &IntFire::synapse > syn( sc, i2(), &IntFire::getNumSynapses, &IntFire::setNumSynapses );
 	Id synId( i2.value() + 1 );
 	Element* syn = synId();
 	assert( syn->getName() == "synapse" );
@@ -578,63 +540,41 @@ void testMultiNodeIntFireNetwork()
 	DataId di( 1, 0 ); // DataId( data, field )
 	Eref syne( syn, di );
 
-	/*
-	unsigned int numThreads = 1;
-	if ( Qinfo::numSimGroup() >= 2 ) {
-		numThreads = Qinfo::simGroup( 1 )->numThreads;
-	}
-	*/
-
-	MsgId mid = shell->doAddMsg( "Sparse", e2.fullId(), "spike",
-		FullId( synId, 0 ), "addSpike" );
+	MsgId mid = shell->doAddMsg( "Sparse", e2.objId(), "spike",
+		ObjId( synId, 0 ), "addSpike" );
 	
 	const Msg* m = Msg::getMsg( mid );
 	assert( m );
 	Eref mer = m->manager();
 	assert( mer.element() );
 
-	SetGet2< double, long >::set( mer, "setRandomConnectivity", 
+	SetGet2< double, long >::set( mer.objId(), "setRandomConnectivity", 
 		connectionProbability, 5489UL );
 
+	/*
+	* Cannot do this for multiple nodes: the local node may not have the
+	* case where there are 134 entries.
+	*
 	FieldDataHandlerBase * fdh =
 		static_cast< FieldDataHandlerBase *>( syn->dataHandler() );
-	fdh->syncFieldArraySize();
+	fdh->setFieldDimension( fdh->biggestFieldArraySize() );
 	assert( fdh->biggestFieldArraySize() == 134 );
-
-	/*
-	SetGet1< unsigned int >::set( mer, "loadBalance", numThreads ); 
-	vector< unsigned int > synArraySizes;
-	unsigned int start = syn->dataHandler()->getNumData2( synArraySizes );
-	// cout << "start = " << start << endl;
-	unsigned int synIndex = start;
-	for ( unsigned int i = 0; i < size; ++i ) {
-		// if ( ( i % 100 ) == 0 ) cout << "i = " << i << "SynIndex = " << synIndex << endl;
-		synIndex += synArraySizes[i];
-	}
+	assert( syn->dataHandler()->totalEntries() == size * 134 );
 	*/
 
 	unsigned int nd = syn->dataHandler()->localEntries();
-	assert( syn->dataHandler()->totalEntries() == size * 134 );
 	if ( Shell::numNodes() == 1 )
 		assert( nd == NUM_TOT_SYN );
-	if ( Shell::numNodes() == 2 )
+	else if ( Shell::numNodes() == 2 )
 		assert( nd == 52446 );
-	if ( Shell::numNodes() == 3 )
+	else if ( Shell::numNodes() == 3 )
 		assert( nd == 34969 );
-	if ( Shell::numNodes() == 4 )
+	else if ( Shell::numNodes() == 4 )
 		assert( nd == 26381 );
-
-//	cout << "nd = " << nd << endl;
-	
-	// cout << "Num Syn = " << nd << endl;
-	// nd = 104576;
 
 	// Here we have an interesting problem. The mtRand might be called
 	// by multiple threads if the above Set call is not complete.
-	// usleep( 1000000);
 
-	// This fails on multinodes.
-	// assert( nd == NUMSYN );
 	vector< double > temp( size, 0.0 );
 	for ( unsigned int i = 0; i < size; ++i )
 		temp[i] = mtrand() * Vmax;
@@ -642,37 +582,37 @@ void testMultiNodeIntFireNetwork()
 	double origVm100 = temp[100];
 	double origVm900 = temp[900];
 
-	bool ret = Field< double >::setVec( e2, "Vm", temp );
+	bool ret = Field< double >::setVec( i2, "Vm", temp );
 	assert( ret );
 
 	temp.clear();
 	temp.resize( size, thresh );
-	ret = Field< double >::setVec( e2, "thresh", temp );
+	ret = Field< double >::setVec( i2, "thresh", temp );
 	assert( ret );
 	temp.clear();
 	temp.resize( size, refractoryPeriod );
-	ret = Field< double >::setVec( e2, "refractoryPeriod", temp );
+	ret = Field< double >::setVec( i2, "refractoryPeriod", temp );
 	assert( ret );
 
-	FieldDataHandlerBase* fd = dynamic_cast< FieldDataHandlerBase* >(
-		syne.element()->dataHandler() );
-	assert( fd );
-	unsigned int fieldSize = fd->biggestFieldArraySize();
-	fd->setFieldDimension( fieldSize );
-	cout << Shell::myNode() << ": fieldSize = " << fieldSize << endl;
+	shell->doSyncDataHandler( e2.id(), "get_numSynapses", synId );
+
+	unsigned int fieldSize = 
+		Field< unsigned int >::get( synId, "fieldDimension" );
+	assert( fieldSize == 134 );
+
+	// cout << Shell::myNode() << ": fieldSize = " << fieldSize << endl;
 	vector< unsigned int > numSynVec;
 
 	vector< double > weight( size * fieldSize, 0.0 );
 	vector< double > delay( size * fieldSize, 0.0 );
 	unsigned int numTotSyn = 0;
-	Eref alle2( e2.element(), DataId::any() );
-	Field< unsigned int >::getVec( alle2, "numSynapses", numSynVec );
+	// Eref alle2( e2.element(), DataId::any() );
+	Field< unsigned int >::getVec( i2, "numSynapses", numSynVec );
 	assert ( numSynVec.size() == size );
-	for ( unsigned int i = 0; i < size; ++i ) 
-		cout << "(" << i << ", " << numSynVec[i] << "	";
-	cout << endl;
+
 	for ( unsigned int i = 0; i < size; ++i ) {
 		unsigned int k = i * fieldSize;
+		// cout << "numSynVec[" << i << "] = " << numSynVec[i] << endl;
 		for ( unsigned int j = 0; j < numSynVec[i]; ++j ) {
 			assert( ( k + j ) < ( size * fieldSize ) );
 			weight[ k + j ] = mtrand() * weightMax;
@@ -681,70 +621,58 @@ void testMultiNodeIntFireNetwork()
 		}
 	}
 	assert ( numTotSyn == NUM_TOT_SYN );
+
+	ret = Field< double >::setVec( synId, "weight", weight );
+	assert( ret );
+	ret = Field< double >::setVec( synId, "delay", delay );
+	assert( ret );
+
+	vector< double > retVec;
+	// Eref allSyn( syne.element(), DataId::any() );
+	Field< double >::getVec( synId, "weight", retVec );
+	assert( retVec.size() == size * fieldSize );
 	/*
-	for ( unsigned int i = 0; i < size; ++i ) {
-		unsigned int numSyn = fd->getFieldArraySize( i );
-		unsigned int k = i * fieldSize;
-		// cout << numSyn << endl;
-		for ( unsigned int j = 0; j < numSyn; ++j ) {
-			assert( ( k + j ) < ( size * fieldSize ) );
-			weight[ k + j ] = mtrand() * weightMax;
-			delay[ k + j ] = mtrand() * delayMax;
-			++numTotSyn;
-		}
-	}
-	*/
-	// assert ( numTotSyn == nd );
-	for ( unsigned int i = 0; i < size; i+= 100 ) {
-		cout << "correct wt = " << weight[ i * fieldSize ] << endl << flush;
-		// assert( doubleEq( wt, weight[ i * fieldSize ] ) );
+	for ( unsigned int i = fieldSize* ( size /2 - 2 ); i < fieldSize * ( size / 2 + 2 ); i++ ) {
+		cout << "0Got wt[" << i << "] = " << retVec[i] << ", correct = " << weight[ i ] << endl << flush;
 	}
 
-	/*
-	vector< double > weight;
-	weight.reserve( nd );
-	vector< double > delay;
-	delay.reserve( nd );
-	for ( unsigned int i = 0; i < nd; ++i ) {
-		weight.push_back( mtrand() * weightMax );
-		delay.push_back( mtrand() * delayMax );
-	}
+		cout << "1Got wt[" << i << "] = " << retVec[i] << ", correct = " << weight[ i ] << endl << flush;
 	*/
-	ret = Field< double >::setVec( syne, "weight", weight );
-	assert( ret );
-	ret = Field< double >::setVec( syne, "delay", delay );
-	assert( ret );
+	for ( unsigned int i = 0; i < size * fieldSize; i += 10000 ) {
+		 assert( retVec[i] == weight[i] );
+	}
+	
 
 	for ( unsigned int i = 0; i < size; i+= 100 ) {
 		double wt = Field< double >::get( 
-			Eref( syne.element(), DataId( i, 0 ) ), "weight" );
-		cout << "Got wt = " << wt << ", correct = " << weight[ i * fieldSize ] << endl << flush;
-		// assert( doubleEq( wt, weight[ i * fieldSize ] ) );
+			ObjId( synId, DataId( i, 0 ) ), "weight" );
+
+		// cout << "Got wt = " << wt << ", correct = " << weight[ i * fieldSize ] << endl << flush;
+		assert( doubleEq( wt, weight[ i * fieldSize ] ) );
 	}
 
 	Element* ticke = Id( 2 )();
 	Eref er0( ticke, DataId( 0, 0 ) );
 
-	shell->doAddMsg( "Single", er0.fullId(), "process0",
-		e2.fullId(), "process" );
+	shell->doAddMsg( "Single", er0.objId(), "process0",
+		e2.objId(), "process" );
 	shell->doSetClock( 0, timestep );
 	shell->doReinit();
 
-	double retVm100 = Field< double >::get( Eref( e2.element(), 100 ), "Vm" );
-	double retVm900 = Field< double >::get( Eref( e2.element(), 900 ), "Vm" );
+	double retVm100 = Field< double >::get( ObjId( i2, 100 ), "Vm" );
+	double retVm900 = Field< double >::get( ObjId( i2, 900 ), "Vm" );
 	assert( fabs( retVm100 - origVm100 ) < 1e-6 );
 	assert( fabs( retVm900 - origVm900 ) < 1e-6 );
 
 	shell->doStart( static_cast< double >( timestep * runsteps) + 0.0 );
-	retVm100 = Field< double >::get( Eref( e2.element(), 100 ), "Vm" );
-	retVm900 = Field< double >::get( Eref( e2.element(), 900 ), "Vm" );
+	retVm100 = Field< double >::get( ObjId( i2, 100 ), "Vm" );
+	retVm900 = Field< double >::get( ObjId( i2, 900 ), "Vm" );
 
 	// cout << "MultiNodeIntFireNetwork: Vm100 = " << retVm100 << ", " << Vm100 << "; Vm900 = " << retVm900 << ", " << Vm900 << endl;
 	assert( fabs( retVm100 - Vm100 ) < 1e-6 );
 	assert( fabs( retVm900 - Vm900 ) < 1e-6 );
 
 	cout << "." << flush;
-	// shell->doDelete( synId );
 	shell->doDelete( i2 );
 }
 	
@@ -823,13 +751,13 @@ void speedTestMultiNodeIntFireNetwork( unsigned int size, unsigned int runsteps 
 	}
 	*/
 
-	MsgId mid = shell->doAddMsg( "Sparse", e2.fullId(), "spike",
-		FullId( synId, 0 ), "addSpike" );
+	MsgId mid = shell->doAddMsg( "Sparse", i2, "spike",
+		ObjId( synId, 0 ), "addSpike" );
 	
 	const Msg* m = Msg::getMsg( mid );
 	Eref mer = m->manager();
 
-	SetGet2< double, long >::set( mer, "setRandomConnectivity", 
+	SetGet2< double, long >::set( mer.objId(), "setRandomConnectivity", 
 		connectionProbability, 5489UL );
 
 	// SetGet1< unsigned int >::set( mer, "loadBalance", numThreads ); 
@@ -843,16 +771,16 @@ void speedTestMultiNodeIntFireNetwork( unsigned int size, unsigned int runsteps 
 	for ( unsigned int i = 0; i < size; ++i )
 		temp[i] = mtrand() * Vmax;
 
-	bool ret = Field< double >::setVec( e2, "Vm", temp );
+	bool ret = Field< double >::setVec( i2, "Vm", temp );
 	assert( ret );
 
 	temp.clear();
 	temp.resize( size, thresh );
-	ret = Field< double >::setVec( e2, "thresh", temp );
+	ret = Field< double >::setVec( i2, "thresh", temp );
 	assert( ret );
 	temp.clear();
 	temp.resize( size, refractoryPeriod );
-	ret = Field< double >::setVec( e2, "refractoryPeriod", temp );
+	ret = Field< double >::setVec( i2, "refractoryPeriod", temp );
 	assert( ret );
 
 	vector< double > weight;
@@ -863,16 +791,16 @@ void speedTestMultiNodeIntFireNetwork( unsigned int size, unsigned int runsteps 
 		weight.push_back( 2.0 * ( mtrand() - 0.5 ) * weightMax );
 		delay.push_back( mtrand() * delayMax );
 	}
-	ret = Field< double >::setVec( syne, "weight", weight );
+	ret = Field< double >::setVec( synId, "weight", weight );
 	assert( ret );
-	ret = Field< double >::setVec( syne, "delay", delay );
+	ret = Field< double >::setVec( synId, "delay", delay );
 	assert( ret );
 
 	Element* ticke = Id( 2 )();
 	Eref er0( ticke, DataId( 0, 0 ) );
 
-	shell->doAddMsg( "Single", er0.fullId(), "process0",
-		e2.fullId(), "process" );
+	shell->doAddMsg( "Single", er0.objId(), "process0",
+		e2.objId(), "process" );
 	shell->doSetClock( 0, timestep );
 
 	shell->doStart( static_cast< double >( timestep * runsteps) + 0.0 );

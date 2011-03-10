@@ -62,6 +62,8 @@ void testArith()
  */
 void testFibonacci()
 {
+	if ( Shell::numNodes() > 1 )
+		return;
 	unsigned int numFib = 20;
 	vector< unsigned int > dims( 1, numFib );
 
@@ -133,30 +135,35 @@ void testMpiFibonacci()
 	unsigned int numFib = 20;
 	vector< unsigned int > dims( 1, numFib );
 
-	Id a1id = Id::nextId();
+	// Id a1id = Id::nextId();
 	Shell* shell = reinterpret_cast< Shell* >( Id().eref().data() );
 
-	Element* a1 = new Element( a1id, Arith::initCinfo(), "a1", dims );
+	Id a1id = shell->doCreate( "Arith", Id(), "a1", dims );
+	// Element* a1 = new Element( a1id, Arith::initCinfo(), "a1", dims );
+	SetGet1< double >::set( a1id, "arg1", 0 );
+	SetGet1< double >::set( a1id, "arg2", 1 );
 
+	/*
 	Arith* data = reinterpret_cast< Arith* >( a1->dataHandler()->data( 0 ) );
 
 	if ( data ) {
 		data->arg1( 0 );
 		data->arg2( 1 );
 	}
+	*/
 
 	MsgId mid1 = shell->doAddMsg( "Diagonal", 
-		FullId( a1id, 0 ), "output", FullId( a1id, 0 ), "arg1" );
+		ObjId( a1id, 0 ), "output", ObjId( a1id, 0 ), "arg1" );
 	const Msg* m1 = Msg::getMsg( mid1 );
 	Eref er1 = m1->manager();
-	bool ret = Field< int >::set( er1, "stride", 1 );
+	bool ret = Field< int >::set( er1.objId(), "stride", 1 );
 	assert( ret );
 
 	MsgId mid2 = shell->doAddMsg( "Diagonal", 
-		FullId( a1id, 0 ), "output", FullId( a1id, 0 ), "arg2" );
+		ObjId( a1id, 0 ), "output", ObjId( a1id, 0 ), "arg2" );
 	const Msg* m2 = Msg::getMsg( mid2 );
 	Eref er2 = m2->manager();
-	ret = Field< int >::set( er2, "stride", 2 );
+	ret = Field< int >::set( er2.objId(), "stride", 2 );
 	assert( ret );
 	
 	/*
@@ -170,17 +177,25 @@ void testMpiFibonacci()
 	Eref ticker = Id( 2 ).eref();
 //	ret = OneToAllMsg::add( ticker, "process0", a1, "process" );
 //	assert( ret );
+	shell->doUseClock( "/a1", "process", 0 );
 
 	shell->doStart( numFib );
+
+	vector< double > retVec;
+	Field< double >::getVec( a1id, "outputValue", retVec );
+	assert( retVec.size() == numFib );
 
 	unsigned int f1 = 1;
 	unsigned int f2 = 0;
 	for ( unsigned int i = 0; i < numFib; ++i ) {
+		/*
 		if ( a1->dataHandler()->isDataHere( i ) ) {
 			Arith* data = reinterpret_cast< Arith* >( a1->dataHandler()->data( i ) );
 			// cout << Shell::myNode() << ": i = " << i << ", " << data->getOutput() << ", " << f1 << endl;
 			assert( data->getOutput() == f1 );
 		}
+		*/
+		assert( doubleEq( retVec[i], f1 ) );
 		unsigned int temp = f1;
 		f1 = temp + f2;
 		f2 = temp;
@@ -256,10 +271,10 @@ void testTable()
 		t->input( sqrt( i ) );
 	}
 	unsigned int numEntries = Field< unsigned int >::get( 
-		tabid.eref(), "num_table" );
+		tabid, "num_table" );
 	assert( numEntries == 100 );
 	for ( unsigned int i = 0; i < 100; ++i ) {
-		Eref temp( tabentry(), DataId( 0, i ) );
+		ObjId temp( tabentry, DataId( 0, i ) );
 		double ret = Field< double >::get( temp, "value" );
 		assert( fabs( ret - sqrt( i ) ) < 1e-6 );
 	}
@@ -286,29 +301,28 @@ void testGetMsg()
 	assert( arithid != Id() );
 	// Table* t = reinterpret_cast< Table* >( tabid.eref().data() );
 	MsgId ret = shell->doAddMsg( "Single", 
-		tabid.eref().fullId(), "requestData",
-		arithid.eref().fullId(), "get_outputValue" );
+		tabid.eref().objId(), "requestData",
+		arithid.eref().objId(), "get_outputValue" );
 	assert( ret != Msg::badMsg );
-	ret = shell->doAddMsg( "Single", arithid.eref().fullId(), "output",
-		arithid.eref().fullId(), "arg1" );
+	ret = shell->doAddMsg( "Single", arithid.eref().objId(), "output",
+		arithid.eref().objId(), "arg1" );
 	assert( ret != Msg::badMsg );
 	shell->doSetClock( 0, 1 );
 	shell->doUseClock( "/tab,/arith", "process", 0 );
 	unsigned int numEntries = Field< unsigned int >::get( 
-		tabid.eref(), "num_table" );
+		tabid, "num_table" );
 	assert( numEntries == 0 );
 	shell->doReinit();
-	SetGet1< double >::set( arithid.eref(), "arg1", 0.0 );
-	SetGet1< double >::set( arithid.eref(), "arg2", 2.0 );
+	SetGet1< double >::set( arithid, "arg1", 0.0 );
+	SetGet1< double >::set( arithid, "arg2", 2.0 );
 	shell->doStart( 100 );
 
-	numEntries = Field< unsigned int >::get( 
-		tabid.eref(), "num_table" );
+	numEntries = Field< unsigned int >::get( tabid, "num_table" );
 	assert( numEntries == 101 ); // One for reinit call, 100 for process.
 
 	Id tabentry( tabid.value() + 1 );
 	for ( unsigned int i = 0; i < 100; ++i ) {
-		Eref temp( tabentry(), DataId( 0, i ) );
+		ObjId temp( tabentry, DataId( 0, i ) );
 		double ret = Field< double >::get( temp, "value" );
 		assert( doubleEq( ret, 2 * i ) );
 	}
@@ -327,6 +341,8 @@ void testGetMsg()
 
 void testStatsReduce()
 {
+	if ( Shell::numNodes() > 1 )
+		return;
 	Shell* shell = reinterpret_cast< Shell* >( Id().eref().data() );
 	const Cinfo* ic = IntFire::initCinfo();
 	// const Cinfo* sc = Synapse::initCinfo();
@@ -334,7 +350,6 @@ void testStatsReduce()
 	vector< unsigned int > dims( 1, size );
 	string arg;
 	Id i2 = Id::nextId();
-	Id i3( i2.value() + 1 );
 	// bool ret = ic->create( i2, "test2", size );
 	Element* temp = new Element( i2, ic, "test2", dims, 1 );
 	assert( temp );
@@ -357,7 +372,7 @@ void testStatsReduce()
 	
 	Eref e2( i2(), 0 );
 	// Here we test setting a 1-D vector
-	bool ret = Field< unsigned int >::setVec( e2, "numSynapses", numSyn );
+	bool ret = Field< unsigned int >::setVec( i2, "numSynapses", numSyn );
 	assert( ret );
 
 	assert( fd->biggestFieldArraySize() == size - 1 );
@@ -379,7 +394,7 @@ void testStatsReduce()
 		}
 	}
 
-	ret = Field< double >::setVec( Eref( syn, 0 ), "delay", delay );
+	ret = Field< double >::setVec( synId, "delay", delay );
 	Eref syner( syn, DataId::any() );
 
 	dims[0] = 1;
@@ -387,25 +402,98 @@ void testStatsReduce()
 
 
 	MsgId mid = shell->doAddMsg( "Reduce", 
-		statsid.eref().fullId(), "reduce",
-		syner.fullId(), "get_delay" );
+		statsid.eref().objId(), "reduce",
+		syner.objId(), "get_delay" );
 	assert( mid != Msg::badMsg );
 	/*
 	shell->doSetClock( 0, 1 );
 	shell->doReinit();
 	shell->doStart( 1 );
 	*/
-	SetGet0::set( statsid.eref(), "trig" );
-	double x = Field< double >::get( statsid.eref(), "sum" );
+	SetGet0::set( statsid, "trig" );
+	double x = Field< double >::get( statsid, "sum" );
 	assert( doubleEq( x, sum ) );
-	unsigned int i = Field< unsigned int >::get( statsid.eref(), "num" );
+	unsigned int i = Field< unsigned int >::get( statsid, "num" );
 	assert( i == num );
-	x = Field< double >::get( statsid.eref(), "sdev" );
+	x = Field< double >::get( statsid, "sdev" );
 	assert( doubleEq( x, sqrt( ( sum * sum - sumsq ) /num ) ) );
 
 	cout << "." << flush;
-	delete i3();
+	delete synId();
 	delete i2();
+}
+
+void testMpiStatsReduce()
+{
+	Shell* shell = reinterpret_cast< Shell* >( Id().eref().data() );
+	unsigned int size = 100;
+	vector< unsigned int > dims( 1, size );
+	Id i2 = shell->doCreate( "IntFire", Id(), "test2", dims );
+	Id synId( i2.value() + 1 );
+	// bool ret = ic->create( i2, "test2", size );
+	Element* syn = synId();
+	assert ( syn != 0 );
+	assert ( syn->getName() == "synapse" );
+
+	assert( syn->dataHandler()->localEntries() == 0 );
+	assert( syn->dataHandler()->totalEntries() == 100 );
+	Eref syner( syn, 0 );
+
+	FieldDataHandlerBase* fd = dynamic_cast< FieldDataHandlerBase *>( 
+		syn->dataHandler() );
+	assert( fd );
+	assert( fd->localEntries() == 0 );
+
+	vector< unsigned int > numSyn( size, 0 );
+	for ( unsigned int i = 0; i < size; ++i )
+		numSyn[i] = i;
+	
+	Eref e2( i2(), 0 );
+	bool ret = Field< unsigned int >::setVec( i2, "numSynapses", numSyn );
+	assert( ret );
+
+	// This calculation only works for node 0, with the present (implicit)
+	// decomposition scheme.
+	assert( fd->biggestFieldArraySize() == size/Shell::numNodes() - 1 );
+	Field< unsigned int >::set( synId, "fieldDimension", size );
+	assert ( fd->totalEntries() == size * size );
+	// Here we test setting a 2-D array with different dims on each axis.
+	vector< double > delay( size * size, 0.0 );
+	double sum = 0.0;
+	double sumsq = 0.0;
+	unsigned int num = 0;
+	for ( unsigned int i = 0; i < size; ++i ) {
+		unsigned int k = i * size;
+		for ( unsigned int j = 0; j < i; ++j ) {
+			double x = i * 1000 + j;
+			sum += x;
+			sumsq += x * x;
+			++num;
+			delay[k++] = x;
+		}
+	}
+
+	ret = Field< double >::setVec( synId, "delay", delay );
+
+	dims[0] = 1;
+	Id statsid = shell->doCreate( "Stats", Id(), "stats", dims );
+
+
+	MsgId mid = shell->doAddMsg( "Reduce", 
+		statsid.eref().objId(), "reduce",
+		syner.objId(), "get_delay" );
+	assert( mid != Msg::badMsg );
+	SetGet0::set( statsid, "trig" );
+	double x = Field< double >::get( statsid, "sum" );
+	assert( doubleEq( x, sum ) );
+	unsigned int i = Field< unsigned int >::get( statsid, "num" );
+	assert( i == num );
+	x = Field< double >::get( statsid, "sdev" );
+	assert( doubleEq( x, sqrt( ( sum * sum - sumsq ) /num ) ) );
+
+	delete synId();
+	delete i2();
+	cout << "." << flush;
 }
 
 void testBuiltins()
@@ -418,11 +506,11 @@ void testBuiltinsProcess()
 {
 	testFibonacci();
 	testGetMsg();
-//	testStatsReduce();
+	testStatsReduce();
 }
 
 void testMpiBuiltins( )
 {
-	//Need to update
-// 	testMpiFibonacci();
+ 	testMpiFibonacci();
+	testMpiStatsReduce();
 }

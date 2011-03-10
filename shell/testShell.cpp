@@ -26,23 +26,6 @@
 #include "SingleMsg.h"
 #include "Wildcard.h"
 
-void testCreateDelete()
-{
-	
-	Eref ser = Id().eref();
-	Id testId = Id::nextId();
-	vector< unsigned int > dimensions;
-	dimensions.push_back( 1 );
-	// Need to get the id back so that I can delete it later.
-	bool ret = SetGet5< string, Id, Id, string, vector< unsigned int > >::set( ser, "create", "Neutral", Id(), testId , "testCreate", dimensions );
-	assert( ret );
-
-	ret = SetGet1< Id >::set( ser, "delete", testId );
-	assert( ret );
-
-	cout << "." << flush;
-}
-
 
 /**
  * Tests Create and Delete calls issued through the parser interface,
@@ -89,46 +72,46 @@ void testTreeTraversal()
 	////////////////////////////////////////////////////////////////
 	// Checking for own Ids
 	////////////////////////////////////////////////////////////////
-	FullId me = Field< FullId >::get( f3aa.eref(), "me" );
-	assert( me == FullId( f3aa, 0 ) );
-	me = Field< FullId >::get( f3ba.eref(), "me" );
-	assert( me == FullId( f3ba, 0 ) );
-	me = Field< FullId >::get( f2c.eref(), "me" );
-	assert( me == FullId( f2c, 0 ) );
+	ObjId me = Field< ObjId >::get( f3aa, "me" );
+	assert( me == ObjId( f3aa, 0 ) );
+	me = Field< ObjId >::get( f3ba, "me" );
+	assert( me == ObjId( f3ba, 0 ) );
+	me = Field< ObjId >::get( f2c, "me" );
+	assert( me == ObjId( f2c, 0 ) );
 
 	////////////////////////////////////////////////////////////////
 	// Checking for parent Ids
 	////////////////////////////////////////////////////////////////
-	FullId pa = Field< FullId >::get( f3aa.eref(), "parent" );
-	assert( pa == FullId( f2a, 0 ) );
-	pa = Field< FullId >::get( f3ab.eref(), "parent" );
-	assert( pa == FullId( f2a, 0 ) );
-	pa = Field< FullId >::get( f2b.eref(), "parent" );
-	assert( pa == FullId( f1, 0 ) );
-	pa = Field< FullId >::get( f1.eref(), "parent" );
-	assert( pa == FullId( Id(), 0 ) );
+	ObjId pa = Field< ObjId >::get( f3aa, "parent" );
+	assert( pa == ObjId( f2a, 0 ) );
+	pa = Field< ObjId >::get( f3ab, "parent" );
+	assert( pa == ObjId( f2a, 0 ) );
+	pa = Field< ObjId >::get( f2b, "parent" );
+	assert( pa == ObjId( f1, 0 ) );
+	pa = Field< ObjId >::get( f1, "parent" );
+	assert( pa == ObjId( Id(), 0 ) );
 
 	cout << "." << flush;
 
 	////////////////////////////////////////////////////////////////
 	// Checking for child Id lists
 	////////////////////////////////////////////////////////////////
-	vector< Id > kids = Field< vector< Id > >::get( f1.eref(), "children" );
+	vector< Id > kids = Field< vector< Id > >::get( f1, "children" );
 	assert( kids.size() == 3 );
 	assert( kids[0] == f2a );
 	assert( kids[1] == f2b );
 	assert( kids[2] == f2c );
 
-	kids = Field< vector< Id > >::get( f2a.eref(), "children" );
+	kids = Field< vector< Id > >::get( f2a, "children" );
 	assert( kids.size() == 2 );
 	assert( kids[0] == f3aa );
 	assert( kids[1] == f3ab );
 	
-	kids = Field< vector< Id > >::get( f2b.eref(), "children" );
+	kids = Field< vector< Id > >::get( f2b, "children" );
 	assert( kids.size() == 1 );
 	assert( kids[0] == f3ba );
 
-	kids = Field< vector< Id > >::get( f2c.eref(), "children" );
+	kids = Field< vector< Id > >::get( f2c, "children" );
 	assert( kids.size() == 0 );
 
 	cout << "." << flush;
@@ -136,22 +119,22 @@ void testTreeTraversal()
 	////////////////////////////////////////////////////////////////
 	// Checking path string generation.
 	////////////////////////////////////////////////////////////////
-	string path = Field< string >::get( f3aa.eref(), "path" );
+	string path = Field< string >::get( f3aa, "path" );
 	assert( path == "/f1/f2a/f3aa" );
-	path = Field< string >::get( f3ab.eref(), "path" );
+	path = Field< string >::get( f3ab, "path" );
 	assert( path == "/f1/f2a/f3ab" );
-	path = Field< string >::get( f3ba.eref(), "path" );
+	path = Field< string >::get( f3ba, "path" );
 	assert( path == "/f1/f2b/f3ba" );
 
-	path = Field< string >::get( f2a.eref(), "path" );
+	path = Field< string >::get( f2a, "path" );
 	assert( path == "/f1/f2a" );
-	path = Field< string >::get( f2b.eref(), "path" );
+	path = Field< string >::get( f2b, "path" );
 	assert( path == "/f1/f2b" );
-	path = Field< string >::get( f2c.eref(), "path" );
+	path = Field< string >::get( f2c, "path" );
 	assert( path == "/f1/f2c" );
-	path = Field< string >::get( f1.eref(), "path" );
+	path = Field< string >::get( f1, "path" );
 	assert( path == "/f1" );
-	path = Field< string >::get( Id().eref(), "path" );
+	path = Field< string >::get( Id(), "path" );
 	assert( path == "/" );
 
 	cout << "." << flush;
@@ -291,11 +274,11 @@ void testMove()
 	Id f4b = shell->doCreate( "Neutral", f3, "f4b", dimensions );
 	verifyKids( f1, f2a, f2b, f3, f4a, f4b );
 
-	FullId pa = Field< FullId >::get( f4a.eref(), "parent" );
-	assert( pa == FullId( f3, 0 ) );
-	pa = Field< FullId >::get( f2a.eref(), "parent" );
-	assert( pa == FullId( f1, 0 ) );
-	string path = Field< string >::get( f4a.eref(), "path" );
+	ObjId pa = Field< ObjId >::get( f4a, "parent" );
+	assert( pa == ObjId( f3, 0 ) );
+	pa = Field< ObjId >::get( f2a, "parent" );
+	assert( pa == ObjId( f1, 0 ) );
+	string path = Field< string >::get( f4a, "path" );
 	assert( path == "/f1/f2a/f3/f4a" );
 	Neutral* f1data = reinterpret_cast< Neutral* >( f1.eref().data() );
 
@@ -314,8 +297,8 @@ void testMove()
 	shell->doMove( f4a, f1 );
 	//////////////////////////////////////////////////////////////////
 
-	pa = Field< FullId >::get( f4a.eref(), "parent" );
-	assert( pa == FullId( f1, 0 ) );
+	pa = Field< ObjId >::get( f4a, "parent" );
+	assert( pa == ObjId( f1, 0 ) );
 
 	kids = f1data->getChildren( f1.eref(), 0 );
 	assert( kids.size() == 3 );
@@ -329,9 +312,9 @@ void testMove()
 	//////////////////////////////////////////////////////////////////
 	shell->doMove( f2a, f4a );
 	//////////////////////////////////////////////////////////////////
-	pa = Field< FullId >::get( f2a.eref(), "parent" );
-	assert( pa == FullId( f4a, 0 ) );
-	path = Field< string >::get( f4b.eref(), "path" );
+	pa = Field< ObjId >::get( f2a, "parent" );
+	assert( pa == ObjId( f4a, 0 ) );
+	path = Field< string >::get( f4b, "path" );
 	assert( path == "/f1/f4a/f2a/f3/f4b" );
 
 	kids = f1data->getChildren( f1.eref(), 0 );
@@ -358,11 +341,11 @@ void testCopy()
 
 	verifyKids( f1, f2a, f2b, f3, f4a, f4b );
 
-	FullId pa = Field< FullId >::get( f3.eref(), "parent" );
-	assert( pa == FullId( f2a, 0 ) );
-	pa = Field< FullId >::get( f2a.eref(), "parent" );
-	assert( pa == FullId( f1, 0 ) );
-	string path = Field< string >::get( f3.eref(), "path" );
+	ObjId pa = Field< ObjId >::get( f3, "parent" );
+	assert( pa == ObjId( f2a, 0 ) );
+	pa = Field< ObjId >::get( f2a, "parent" );
+	assert( pa == ObjId( f1, 0 ) );
+	string path = Field< string >::get( f3, "path" );
 	assert( path == "/f1/f2a/f3" );
 
 	//////////////////////////////////////////////////////////////////
@@ -372,8 +355,8 @@ void testCopy()
 	verifyKids( f1, f2a, f2b, f3, f4a, f4b );
 
 	assert( dupf2a != Id() );
-	// pa = Field< FullId >::get( dupf2a.eref(), "parent" );
-	// assert( pa == FullId( f1, 0 ) );
+	// pa = Field< ObjId >::get( dupf2a, "parent" );
+	// assert( pa == ObjId( f1, 0 ) );
 	assert( dupf2a()->getName() == "TheElephantsAreLoose" );
 	Neutral* f2aDupData = reinterpret_cast< Neutral* >( dupf2a.eref().data() );
 	Id dupf3 = f2aDupData->child( dupf2a.eref(), "f3" );
@@ -385,7 +368,7 @@ void testCopy()
 	assert( kids[0] == dupf3 );
 
 	Neutral* f3DupData = reinterpret_cast< Neutral* >( dupf3.eref().data());
-	assert( f3DupData->getParent( dupf3.eref(), 0 ) == FullId( dupf2a, 0 ));
+	assert( f3DupData->getParent( dupf3.eref(), 0 ) == ObjId( dupf2a, 0 ));
 	kids = f3DupData->getChildren( dupf3.eref(), 0 );
 	assert( kids.size() == 2 );
 	assert( kids[0]()->getName() == "f4a" );
@@ -487,17 +470,17 @@ void testShellSetGet()
 	// cout << Shell::myNode() << ": testShellSetGet: data here = (" << a1()->dataHandler()->begin() << " to " << a1()->dataHandler()->end() << ")" << endl;
 	for ( unsigned int i = 0; i < size; ++i ) {
 		val.push_back( i * i * i ); // use i^3 as a simple test.
-		bool ret = SetGet1< double >::set( Eref( a1(), i ), "set_outputValue", i * i );
+		bool ret = SetGet1< double >::set( ObjId( a1, i ), "set_outputValue", i * i );
 		assert( ret );
 	}
 	for ( unsigned int i = 0; i < size; ++i ) {
-		double x = Field< double >::get( Eref( a1(), i ), "outputValue" );
+		double x = Field< double >::get( ObjId( a1, i ), "outputValue" );
 		assert( doubleEq( x, i * i ) );
 	}
-	bool ret = SetGet1< double >::setVec( Eref( a1(), 0 ), "set_outputValue", val );
+	bool ret = SetGet1< double >::setVec( a1, "set_outputValue", val );
 	assert( ret );
 	for ( unsigned int i = 0; i < size; ++i ) {
-		double x = Field< double >::get( Eref( a1(), i ), "outputValue" );
+		double x = Field< double >::get( ObjId( a1, i ), "outputValue" );
 		// cout << i << "	x=" << x << "	i^3=" << i * i * i << endl;
 		assert( doubleEq( x, i * i * i ) );
 	}
@@ -529,10 +512,10 @@ void testShellSetGetVec()
 	*/
 }
 
-bool setupSched( Shell* shell, FullId& tick, Id dest )
+bool setupSched( Shell* shell, ObjId& tick, Id dest )
 {
 	MsgId ret = shell->doAddMsg( "OneToAll", 
-		tick, "proc0", FullId( dest, 0 ), "proc" );
+		tick, "proc0", ObjId( dest, 0 ), "proc" );
 	return ( ret != Msg::badMsg );
 }
 
@@ -582,12 +565,17 @@ bool checkOutput( Id e,
 	correct.push_back( v3 );
 	correct.push_back( v4 );
 	vector< double > retVec;
-	Field< double >::getVec( Eref( e(), DataId::any() ), "outputValue", retVec );
+	Field< double >::getVec( e, "outputValue", retVec );
 	assert( retVec.size() == 5 );
 
 	for ( unsigned int i = 0; i < 5; ++i ) {
 		ret = ret & doubleEq( retVec[i], correct[i] );
 		if (report) cout << "( " << correct[i] << ", " << retVec[i] << " ) ";
+	}
+	if ( !ret ) {
+		for ( unsigned int i = 0; i < 5; ++i ) {
+			cout << "( " << correct[i] << ", " << retVec[i] << " ) ";
+		}
 	}
 	return ret;
 }
@@ -630,58 +618,59 @@ void testShellAddMsg()
 	///////////////////////////////////////////////////////////
 	// Should give 04000
 	MsgId m1 = shell->doAddMsg( "Single", 
-		FullId( a1, 3 ), "output", FullId( a2, 1 ), "arg3" );
+		ObjId( a1, 3 ), "output", ObjId( a2, 1 ), "arg3" );
 	assert( m1 != Msg::badMsg );
 
 	// Should give 33333
 	MsgId m2 = shell->doAddMsg( "OneToAll", 
-		FullId( b1, 2 ), "output", FullId( b2, 0 ), "arg3" );
+		ObjId( b1, 2 ), "output", ObjId( b2, 0 ), "arg3" );
 	assert( m2 != Msg::badMsg );
 
 	// Should give 12345
 	MsgId m3 = shell->doAddMsg( "OneToOne", 
-		FullId( c1, 0 ), "output", FullId( c2, 0 ), "arg3" );
+		ObjId( c1, 0 ), "output", ObjId( c2, 0 ), "arg3" );
 	assert( m3 != Msg::badMsg );
 
 	// Should give 01234
 	MsgId m4 = shell->doAddMsg( "Diagonal", 
-		FullId( d1, 0 ), "output", FullId( d2, 0 ), "arg3" );
+		ObjId( d1, 0 ), "output", ObjId( d2, 0 ), "arg3" );
 	assert( m4 != Msg::badMsg );
 
 	// Should give 54321
 	MsgId m5 = shell->doAddMsg( "Sparse", 
-		FullId( e1, 0 ), "output", FullId( e2, 0 ), "arg3" );
+		ObjId( e1, 0 ), "output", ObjId( e2, 0 ), "arg3" );
 	assert( m5 != Msg::badMsg );
 
 	const Msg* m5p = Msg::getMsg( m5 );
 	Eref m5er = m5p->manager();
+	ObjId m5oid = m5er.objId();
 
 	bool ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 0, 4, 0 );
+		m5oid, "setEntry", 0, 4, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 1, 3, 0 );
+		m5oid, "setEntry", 1, 3, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 2, 2, 0 );
+		m5oid, "setEntry", 2, 2, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 3, 1, 0 );
+		m5oid, "setEntry", 3, 1, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 4, 0, 0 );
+		m5oid, "setEntry", 4, 0, 0 );
 	assert( ret );
 
 	// Should give 15 15 15 15 15
 	for ( unsigned int i = 0; i < 5; ++i ) {
 		MsgId m6 = shell->doAddMsg( "OneToAll", 
-			FullId( f1, i ), "output", FullId( f2, i ), "arg3" );
+			ObjId( f1, i ), "output", ObjId( f2, i ), "arg3" );
 		assert( m6 != Msg::badMsg );
 	}
 
 	// Should give 14 13 12 11 10
 	MsgId m7 = shell->doAddMsg( "Sparse", 
-		FullId( g1, 0 ), "output", FullId( g2, 0 ), "arg3" );
+		ObjId( g1, 0 ), "output", ObjId( g2, 0 ), "arg3" );
 	assert( m7 != Msg::badMsg );
 	const Msg* m7p = Msg::getMsg( m7 );
 	Eref m7er = m7p->manager();
@@ -689,7 +678,7 @@ void testShellAddMsg()
 		for ( unsigned int j = 0; j < 5; ++j ) {
 			if ( i != j ) {
 				ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-				m7er, "setEntry", i, j, 0 );
+				m7er.objId(), "setEntry", i, j, 0 );
 				assert( ret );
 			}
 		}
@@ -700,7 +689,7 @@ void testShellAddMsg()
 	///////////////////////////////////////////////////////////
 	shell->doSetClock( 0, 1.0 );
 
-	FullId tick( Id( 2 ), 0 );
+	ObjId tick( Id( 2 ), 0 );
 	// I want to compare the # of process msgs before and after.
 	vector< Id > tgts;
 	const SrcFinfo* sf = dynamic_cast< const SrcFinfo* >(
@@ -736,39 +725,39 @@ void testShellAddMsg()
 	vector< double > init; // 12345
 	for ( unsigned int i = 1; i < 6; ++i )
 		init.push_back( i );
-	ret = SetGet1< double >::setVec( a1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( a1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( b1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( b1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( c1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( c1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( d1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( d1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( e1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( e1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( f1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( f1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( g1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( g1, "arg1", init ); // 12345
 	assert( ret );
 
-	assert( doubleEq( Field< double >::get( Eref( a1(), 0 ), "arg1Value" ), 1 ) );
-	assert( doubleEq( Field< double >::get( Eref( a1(), 1 ), "arg1Value" ), 2 ) );
-	assert( doubleEq( Field< double >::get( Eref( a1(), 2 ), "arg1Value" ), 3 ) );
-	assert( doubleEq( Field< double >::get( Eref( a1(), 3 ), "arg1Value" ), 4 ) );
-	assert( doubleEq( Field< double >::get( Eref( a1(), 4 ), "arg1Value" ), 5 ) );
+	assert( doubleEq( Field< double >::get( ObjId( a1, 0 ), "arg1Value" ), 1 ) );
+	assert( doubleEq( Field< double >::get( ObjId( a1, 1 ), "arg1Value" ), 2 ) );
+	assert( doubleEq( Field< double >::get( ObjId( a1, 2 ), "arg1Value" ), 3 ) );
+	assert( doubleEq( Field< double >::get( ObjId( a1, 3 ), "arg1Value" ), 4 ) );
+	assert( doubleEq( Field< double >::get( ObjId( a1, 4 ), "arg1Value" ), 5 ) );
 
 	vector< double > retVec( 0 );
-	Field< double >::getVec( Eref( a1(), DataId::any() ), "arg1Value", retVec );
+	Field< double >::getVec( a1, "arg1Value", retVec );
 	for ( unsigned int i = 0; i < 5; ++i )
 		assert( doubleEq( retVec[i], i + 1 ) );
 
 	retVec.resize( 0 );
-	Field< double >::getVec( Eref( b1(), DataId::any() ), "arg1Value", retVec );
+	Field< double >::getVec( b1, "arg1Value", retVec );
 	for ( unsigned int i = 0; i < 5; ++i )
 		assert( doubleEq( retVec[i], i + 1 ) );
 
 	retVec.resize( 0 );
-	Field< double >::getVec( Eref( c1(), DataId::any() ), "arg1Value", retVec );
+	Field< double >::getVec( c1, "arg1Value", retVec );
 	for ( unsigned int i = 0; i < 5; ++i )
 		assert( doubleEq( retVec[i], i + 1 ) );
 
@@ -870,15 +859,15 @@ void testCopyMsgOps()
 	vector< double > init; // 12345
 	for ( unsigned int i = 1; i < 6; ++i )
 		init.push_back( i );
-	ret = SetGet1< double >::setVec( a1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( a1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( b1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( b1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( c1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( c1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( d1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( d1, "arg1", init ); // 12345
 	assert( ret );
-	ret = SetGet1< double >::setVec( e1.eref(), "arg1", init ); // 12345
+	ret = SetGet1< double >::setVec( e1, "arg1", init ); // 12345
 	assert( ret );
 
 
@@ -887,52 +876,53 @@ void testCopyMsgOps()
 	///////////////////////////////////////////////////////////
 	// Should give 04000
 	MsgId m1 = shell->doAddMsg( "Single", 
-		FullId( a1, 3 ), "output", FullId( a2, 1 ), "arg1" );
+		ObjId( a1, 3 ), "output", ObjId( a2, 1 ), "arg1" );
 	assert( m1 != Msg::badMsg );
 
 	// Should give 33333
 	MsgId m2 = shell->doAddMsg( "OneToAll", 
-		FullId( b1, 2 ), "output", FullId( b2, 0 ), "arg1" );
+		ObjId( b1, 2 ), "output", ObjId( b2, 0 ), "arg1" );
 	assert( m2 != Msg::badMsg );
 
 	// Should give 12345
 	MsgId m3 = shell->doAddMsg( "OneToOne", 
-		FullId( c1, 0 ), "output", FullId( c2, 0 ), "arg1" );
+		ObjId( c1, 0 ), "output", ObjId( c2, 0 ), "arg1" );
 	assert( m3 != Msg::badMsg );
 
 	// Should give 01234
 	MsgId m4 = shell->doAddMsg( "Diagonal", 
-		FullId( d1, 0 ), "output", FullId( d2, 0 ), "arg1" );
+		ObjId( d1, 0 ), "output", ObjId( d2, 0 ), "arg1" );
 	assert( m4 != Msg::badMsg );
 
 	// Should give 54321
 	MsgId m5 = shell->doAddMsg( "Sparse", 
-		FullId( e1, 0 ), "output", FullId( e2, 0 ), "arg1" );
+		ObjId( e1, 0 ), "output", ObjId( e2, 0 ), "arg1" );
 	assert( m5 != Msg::badMsg );
 
 	const Msg* m5p = Msg::getMsg( m5 );
 	Eref m5er = m5p->manager();
+	ObjId m5oid = m5er.objId();
 
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 0, 4, 0 );
+		m5oid, "setEntry", 0, 4, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 1, 3, 0 );
+		m5oid, "setEntry", 1, 3, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 2, 2, 0 );
+		m5oid, "setEntry", 2, 2, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 3, 1, 0 );
+		m5oid, "setEntry", 3, 1, 0 );
 	assert( ret );
 	ret = SetGet3< unsigned int, unsigned int, unsigned int >::set(
-		m5er, "setEntry", 4, 0, 0 );
+		m5oid, "setEntry", 4, 0, 0 );
 	assert( ret );
 
 	// ret = SetGet1< unsigned int >::set( m5er, "loadBalance", Shell::numCores() );
 	assert( ret );
 
-	FullId tick( Id( 2 ), 0 );
+	ObjId tick( Id( 2 ), 0 );
 
 	///////////////////////////////////////////////////////////
 	// Copy it
@@ -943,7 +933,7 @@ void testCopyMsgOps()
 	///////////////////////////////////////////////////////////
 	// Pull out the child Ids.
 	///////////////////////////////////////////////////////////
-	vector< Id > kids = Field< vector< Id > >::get( pa2.eref(), "children");
+	vector< Id > kids = Field< vector< Id > >::get( pa2, "children");
 	assert ( kids.size() == 10 );
 	for ( unsigned int i = 0; i < kids.size(); ++i ) {
 		ret = setupSched( shell, tick, kids[i] ); 
@@ -963,7 +953,7 @@ void testCopyMsgOps()
 	assert( kids[j]()->getName() == "e2" ); ++j;
 
 	vector< double > retVec;
-	Field< double >::getVec( Eref( kids[0](), DataId::any() ), "arg1Value", retVec );
+	Field< double >::getVec( kids[0], "arg1Value", retVec );
 	assert( retVec.size() == 5 );
 	for (unsigned int i = 0; i < 5; ++i )
 		assert( doubleEq( retVec[i], init[i] ) );
@@ -1157,8 +1147,7 @@ void testSyncSynapseSize()
 	vector< unsigned int > ns( size, 0 );
 	for ( unsigned int i = 0; i < size; ++i )
 		ns[i] = i;
-	bool ret = Field< unsigned int >::setVec( 
-		neuronId.eref(), "numSynapses", ns );
+	bool ret = Field< unsigned int >::setVec( neuronId, "numSynapses", ns);
 	assert( ret );
 	// Here we check local entries
 	/*
@@ -1167,7 +1156,7 @@ void testSyncSynapseSize()
 	assert( syn->dataHandler()->localEntries() == ( size * (size - 1) ) / 2 );
 	*/
 
-	shell->doSyncDataHandler( neuronId, df->getFid(), synId );
+	shell->doSyncDataHandler( neuronId, "get_numSynapses", synId );
 
 	assert( syn->dataHandler()->totalEntries() == size * (size - 1 ) );
 	// cout << "NumSyn = " << syn.totalEntries() << endl;
@@ -1180,7 +1169,6 @@ void testShell( )
 	testChopPath();
 	testTreeTraversal();
 	testChildren();
-//	testCreateDelete();
 	// testShellParserQuit();
 }
 
@@ -1199,8 +1187,7 @@ void testMpiShell( )
 	testShellAddMsg();
 	testCopyMsgOps();
 	testWildcard();
-	// testSyncSynapseSize(); // 23 Feb 2011: commented out to check
-	// if this causes the queue problems.
+	testSyncSynapseSize();
 
 	// Stuff for doLoadModel
 	testFindModelParent();

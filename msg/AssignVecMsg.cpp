@@ -29,31 +29,43 @@ AssignVecMsg::~AssignVecMsg()
 
 void AssignVecMsg::exec( const char* arg, const ProcInfo *p ) const
 {
-	const Qinfo *q = ( reinterpret_cast < const Qinfo * >( arg ) );
+	const Qinfo *oldq = ( reinterpret_cast < const Qinfo * >( arg ) );
+	Qinfo q( *oldq );
+	q.setProcInfo( p ); // Tell the q which ProcInfo we are on.
 
-	if ( q->isForward() ) {
+	if ( q.isForward() ) {
 		PrepackedBuffer pb( arg + sizeof( Qinfo ) );
 		// cout << Shell::myNode() << ": AssignVecMsg::exec: pb.size = " << pb.size() << ", dataSize = " << pb.dataSize() << ", numEntries = " << pb.numEntries() << endl;
 		DataHandler* d2 = e2_->dataHandler();
-		const OpFunc* f = e2_->cinfo()->getOpFunc( q->fid() );
+		const OpFunc* f = e2_->cinfo()->getOpFunc( q.fid() );
+// cout << p->nodeIndexInGroup << "." << p->threadIndexInGroup << ": AssignVecMsg: e2 field dim = " << d2->getFieldDimension() << endl;
 		for ( DataHandler::iterator i = d2->begin(); i != d2->end(); ++i )
 		{
 			if ( p->execThread( e2_->id(),i.index().data() ) ) {
+
+/*
+if ( i.linearIndex() > 68570 && i.linearIndex() < 68640 ) {
+	cout << p->nodeIndexInGroup << "." << p->threadIndexInGroup << 
+	": linearIndex=" << i.linearIndex() << ", DataId: " << i.index() << 
+	", ptr = " << p << endl;
+}	
+*/
+
 				// Note that j might not go in sequential order, as it
 				// depends on locally allocated parts of the vector.
 				// But we assume that pb[j] has the entire data block and
 				// so we need to pick selected entries from it.
 				// Note also that this is independent of the # of dimensions
 				// or whether the DataHandler is a FieldDataHandler.
-				f->op( Eref( e2_, i.index() ), q, pb[ i.linearIndex() ] );
+				f->op( Eref( e2_, i.index() ), &q, pb[ i.linearIndex() ] );
 			}
 		}
 		if ( p->threadIndexInGroup == 0 )
-			sendAckBack( p, q->mid(), 0 );
+			sendAckBack( p, q.mid(), 0 );
 	}
-	if ( !q->isForward() && e1_->dataHandler()->isDataHere( i1_ ) &&
+	if ( !q.isForward() && e1_->dataHandler()->isDataHere( i1_ ) &&
 		p->execThread( e1_->id(), i1_.data() ) ) {
-		const OpFunc* f = e1_->cinfo()->getOpFunc( q->fid() );
+		const OpFunc* f = e1_->cinfo()->getOpFunc( q.fid() );
 		f->op( Eref( e1_, i1_ ), arg );
 	}
 }
@@ -63,15 +75,15 @@ Id AssignVecMsg::managerId() const
 	return AssignVecMsg::managerId_;
 }
 
-FullId AssignVecMsg::findOtherEnd( FullId f ) const
+ObjId AssignVecMsg::findOtherEnd( ObjId f ) const
 {
 	if ( f.id() == e1() ) {
-		return FullId( e2()->id(), 0 );
+		return ObjId( e2()->id(), 0 );
 	}
 	if ( f.id() == e2() ) {
-		return FullId( e1()->id(), i1_ );
+		return ObjId( e1()->id(), i1_ );
 	}
-	return FullId::bad();
+	return ObjId::bad();
 }
 
 /// Dummy. We should never be copying assignment messages.

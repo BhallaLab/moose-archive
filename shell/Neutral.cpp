@@ -15,14 +15,8 @@
 const Cinfo* Neutral::initCinfo()
 {
 	/////////////////////////////////////////////////////////////////
-	// Value Finfos
+	// Element Value Finfos
 	/////////////////////////////////////////////////////////////////
-	static ValueFinfo< Neutral, Neutral > thisFinfo (
-		"this",
-		"Access function for entire object",
-		&Neutral::setThis,
-		&Neutral::getThis
-	);
 
 	static ElementValueFinfo< Neutral, string > name( 
 		"name",
@@ -40,19 +34,19 @@ const Cinfo* Neutral::initCinfo()
 		&Neutral::getGroup );
 
 	// Should be renamed to myId
-	static ReadOnlyElementValueFinfo< Neutral, FullId > me( 
+	static ReadOnlyElementValueFinfo< Neutral, ObjId > me( 
 		"me",
-		"FullId for current object", 
-			&Neutral::getFullId );
+		"ObjId for current object", 
+			&Neutral::getObjId );
 
-	static ReadOnlyElementValueFinfo< Neutral, FullId > parent( 
+	static ReadOnlyElementValueFinfo< Neutral, ObjId > parent( 
 		"parent",
-		"Parent FullId for current object", 
+		"Parent ObjId for current object", 
 			&Neutral::getParent );
 
 	static ReadOnlyElementValueFinfo< Neutral, vector< Id > > children( 
 		"children",
-		"vector of FullIds listing all children of current object", 
+		"vector of ObjIds listing all children of current object", 
 			&Neutral::getChildren );
 
 	static ReadOnlyElementValueFinfo< Neutral, string > path( 
@@ -64,6 +58,27 @@ const Cinfo* Neutral::initCinfo()
 		"class",
 		"Class Name of object", 
 			&Neutral::getClass );
+
+	static ElementValueFinfo< Neutral, unsigned int > fieldDimension( 
+		"fieldDimension",
+		"Max size of the dimension of the array of fields."
+		"Applicable specially for ragged arrays of fields, "
+		"where each object may have a different number of fields. "
+		"Must be larger than the size of any of the ragger arrays."
+		"Normally is only assigned from Shell::doSyncDataHandler.",
+			&Neutral::setFieldDimension,
+			&Neutral::getFieldDimension
+		);
+
+	/////////////////////////////////////////////////////////////////
+	// Value Finfos
+	/////////////////////////////////////////////////////////////////
+	static ValueFinfo< Neutral, Neutral > thisFinfo (
+		"this",
+		"Access function for entire object",
+		&Neutral::setThis,
+		&Neutral::getThis
+	);
 	/////////////////////////////////////////////////////////////////
 	// SrcFinfos
 	/////////////////////////////////////////////////////////////////
@@ -90,6 +105,7 @@ const Cinfo* Neutral::initCinfo()
 		&children,
 		&path,
 		&className,
+		&fieldDimension,
 	};
 
 	/////////////////////////////////////////////////////////////////
@@ -150,12 +166,12 @@ unsigned int Neutral::getGroup( const Eref& e, const Qinfo* q ) const
 	return e.element()->getGroup();
 }
 
-FullId Neutral::getFullId( const Eref& e, const Qinfo* q ) const
+ObjId Neutral::getObjId( const Eref& e, const Qinfo* q ) const
 {
-	return e.fullId();
+	return e.objId();
 }
 
-FullId Neutral::getParent( const Eref& e, const Qinfo* q ) const
+ObjId Neutral::getParent( const Eref& e, const Qinfo* q ) const
 {
 	return parent( e );
 	/*
@@ -166,7 +182,7 @@ FullId Neutral::getParent( const Eref& e, const Qinfo* q ) const
 	MsgId mid = e.element()->findCaller( pafid );
 	assert( mid != Msg::badMsg );
 
-	return Msg::getMsg( mid )->findOtherEnd( e.fullId() );
+	return Msg::getMsg( mid )->findOtherEnd( e.objId() );
 	*/
 }
 
@@ -241,6 +257,19 @@ string Neutral::getClass( const Eref& e, const Qinfo* q ) const
 	return e.element()->cinfo()->name();
 }
 
+
+void Neutral::setFieldDimension( const Eref& e, const Qinfo* q, 
+	unsigned int size )
+{
+	e.element()->dataHandler()->setFieldDimension( size );
+}
+
+unsigned int Neutral::getFieldDimension( 
+	const Eref& e, const Qinfo* q ) const
+{
+	return e.element()->dataHandler()->getFieldDimension();
+}
+
 unsigned int Neutral::buildTree( const Eref& e, const Qinfo* q, vector< Id >& tree )
 	const 
 {
@@ -285,7 +314,7 @@ bool Neutral::isDescendant( Id me, Id ancestor )
 	while ( e.element()->id() != Id() && e.element()->id() != ancestor ) {
 		MsgId mid = e.element()->findCaller( pafid );
 		assert( mid != Msg::badMsg );
-		FullId fid = Msg::getMsg( mid )->findOtherEnd( e.fullId() );
+		ObjId fid = Msg::getMsg( mid )->findOtherEnd( e.objId() );
 		e = fid.eref();
 	}
 	return ( e.element()->id() == ancestor );
@@ -318,7 +347,7 @@ Id Neutral::child( const Eref& e, const string& name )
 }
 
 // static function
-FullId Neutral::parent( const Eref& e )
+ObjId Neutral::parent( const Eref& e )
 {
 	static const Finfo* pf = neutralCinfo->findFinfo( "parentMsg" );
 	static const DestFinfo* pf2 = dynamic_cast< const DestFinfo* >( pf );
@@ -326,13 +355,13 @@ FullId Neutral::parent( const Eref& e )
 
 	if ( e.element()->id() == Id() ) {
 		cout << "Warning: Neutral::parent: tried to take parent of root\n";
-		return FullId( Id(), 0 );
+		return ObjId( Id(), 0 );
 	}
 
 	MsgId mid = e.element()->findCaller( pafid );
 	assert( mid != Msg::badMsg );
 
-	return Msg::getMsg( mid )->findOtherEnd( e.fullId() );
+	return Msg::getMsg( mid )->findOtherEnd( e.objId() );
 }
 
 // Static function
@@ -342,8 +371,8 @@ string Neutral::path( const Eref& e )
 	static const DestFinfo* pf2 = dynamic_cast< const DestFinfo* >( pf );
 	static const FuncId pafid = pf2->getFid();
 
-	vector< FullId > pathVec;
-	FullId curr = e.fullId();
+	vector< ObjId > pathVec;
+	ObjId curr = e.objId();
 	stringstream ss;
 
 	pathVec.push_back( curr );

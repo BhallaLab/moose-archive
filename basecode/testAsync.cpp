@@ -283,7 +283,9 @@ void testInnerSet()
 	char* args = new char[ conv.size() ];
 	conv.val2buf( args );
 	PrepackedBuffer pb( args, conv.size() );
-	shell->handleSet( i2, e2.index(), f1, pb );
+	Qinfo q;
+	Qinfo::disableStructuralQ();
+	shell->handleSet( sheller, &q, i2, e2.index(), f1, pb );
 	// shell->innerSet( e2, f1, args, conv.size() );
 	delete[] args;
 	Qinfo::clearQ( &p );
@@ -303,7 +305,8 @@ void testInnerSet()
 		// char* args = new char[ conv.size() ];
 		conv.val2buf( args );
 		PrepackedBuffer pb( args, conv.size() );
-		shell->handleSet( dest.id(), dest.index(), f2, pb );
+		Qinfo::disableStructuralQ();
+		shell->handleSet( sheller, &q, dest.id(), dest.index(), f2, pb );
 	//	shell->innerSet( dest, f2, args, conv.size() );
 	// 	SetGet1< double >::set( dest, "set_outputValue", x );
 		Qinfo::clearQ( &p );
@@ -337,7 +340,9 @@ void testInnerGet() // Actually works on Shell::handleGet.
 	const Finfo* finfo = ret->cinfo()->findFinfo( "get_name" );
 	assert( finfo );
 	FuncId f1 = dynamic_cast< const DestFinfo* >( finfo )->getFid();
-	shell->handleGet( i2, DataId( 0 ), f1, 1 );
+	Qinfo q;
+	Qinfo::disableStructuralQ();
+	shell->handleGet( sheller, &q, i2, DataId( 0 ), f1, 1 );
 	Qinfo::clearQ( &p ); // The request goes to the target Element
 	Qinfo::clearQ( &p ); // The response comes back to the Shell
 	Qinfo::clearQ( &p ); // Response is relayed back to the node 0 Shell
@@ -348,7 +353,8 @@ void testInnerGet() // Actually works on Shell::handleGet.
 	// string val = Field< string >::get( e2, "name" );
 	// assert( val == "test2" );
 	ret->setName( "HupTwoThree" );
-	shell->handleGet( i2, DataId( 0 ), f1, 1 );
+	Qinfo::disableStructuralQ();
+	shell->handleGet( sheller, &q, i2, DataId( 0 ), f1, 1 );
 	Qinfo::clearQ( &p ); // The request goes to the target Element
 	Qinfo::clearQ( &p ); // The response comes back to the Shell
 	Qinfo::clearQ( &p ); // Response is relayed back to the node 0 Shell
@@ -370,7 +376,8 @@ void testInnerGet() // Actually works on Shell::handleGet.
 	for ( unsigned int i = 0; i < size; ++i ) {
 		Eref dest( e2.element(), i );
 
-		shell->handleGet( i2, DataId( i ), f2, 1 );
+		Qinfo::disableStructuralQ();
+		shell->handleGet( sheller, &q, i2, DataId( i ), f2, 1 );
 		Qinfo::clearQ( &p ); // The request goes to the target Element
 		Qinfo::clearQ( &p ); // The response comes back to the Shell
 		Qinfo::clearQ( &p ); // Response is relayed back to the node 0 Shell
@@ -397,18 +404,18 @@ void testSetGet()
 	assert( ret );
 	
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref e2( i2(), i );
+		ObjId oid( i2, i );
 		double x = i * 3.14;
-		bool ret = Field< double >::set( e2, "outputValue", x );
+		bool ret = Field< double >::set( oid, "outputValue", x );
 		assert( ret );
-		double val = reinterpret_cast< Arith* >(e2.data())->getOutput();
+		double val = reinterpret_cast< Arith* >(oid.data())->getOutput();
 		assert( doubleEq( val, x ) );
 	}
 
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref e2( i2(), i );
+		ObjId oid( i2, i );
 		double x = i * 3.14;
-		double ret = Field< double >::get( e2, "outputValue" );
+		double ret = Field< double >::get( oid, "outputValue" );
 		ProcInfo p;
 		assert( doubleEq( ret, x ) );
 	}
@@ -431,13 +438,14 @@ void testStrSet()
 	Eref e2 = i2.eref();
 
 	assert( ret->getName() == "test2" );
-	bool ok = SetGet::strSet( e2, "name", "NewImprovedTest" );
+	bool ok = SetGet::strSet( ObjId( i2, 0 ), "name", "NewImprovedTest" );
 	assert( ok );
 	assert( ret->getName() == "NewImprovedTest" );
 	
 	for ( unsigned int i = 0; i < size; ++i ) {
 		double x = sqrt( i );
-		Eref dest( e2.element(), i );
+		// Eref dest( e2.element(), i );
+		ObjId dest( i2, i );
 		stringstream ss;
 		ss << setw( 10 ) << x;
 		ok = SetGet::strSet( dest, "outputValue", ss.str() );
@@ -469,21 +477,23 @@ void testGet()
 	// Element* shell = Id()();
 	ProcInfo p;
 
-	Eref e2 = i2.eref();
+	// Eref e2 = i2.eref();
+	ObjId oid( i2, 0 );
 
-	string val = Field< string >::get( e2, "name" );
+	string val = Field< string >::get( oid, "name" );
 	assert( val == "test2" );
 	ret->setName( "HupTwoThree" );
-	val = Field< string >::get( e2, "name" );
+	val = Field< string >::get( oid, "name" );
 	assert( val == "HupTwoThree" );
 	
 	for ( unsigned int i = 0; i < size; ++i ) {
 		double temp = i * 3;
-		reinterpret_cast< Arith* >(e2.element()->dataHandler()->data( i ))->setOutput( temp );
+		reinterpret_cast< Arith* >(oid.element()->dataHandler()->data( i ))->setOutput( temp );
 	}
 
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref dest( e2.element(), i );
+		// Eref dest( e2.element(), i );
+		ObjId dest( i2, i );
 
 		double val = Field< double >::get( dest, "outputValue" );
 		double temp = i * 3;
@@ -506,24 +516,26 @@ void testStrGet()
 	// Element* shell = Id()();
 	ProcInfo p;
 
-	Eref e2 = i2.eref();
+	// Eref e2 = i2.eref();
+	ObjId oid( i2, 0 );
 
 	string val;
-	bool ok = SetGet::strGet( e2, "name", val );
+	bool ok = SetGet::strGet( oid, "name", val );
 	assert( ok );
 	assert( val == "test2" );
 	ret->setName( "HupTwoThree" );
-	ok = SetGet::strGet( e2, "name", val );
+	ok = SetGet::strGet( oid, "name", val );
 	assert( ok );
 	assert( val == "HupTwoThree" );
 	
 	for ( unsigned int i = 0; i < size; ++i ) {
 		double temp = i * 3;
-		reinterpret_cast< Arith* >( Eref( i2(), i ).data() )->setOutput( temp );
+		reinterpret_cast< Arith* >( ObjId( i2, i ).data() )->setOutput( temp );
 	}
 
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref dest( e2.element(), i );
+		// Eref dest( e2.element(), i );
+		ObjId dest( i2, i );
 		ok = SetGet::strGet( dest, "outputValue", val );
 		assert( ok );
 		double conv = atof( val.c_str() );
@@ -553,18 +565,20 @@ void testSetGetDouble()
 
 	
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref e2( i2(), i );
+		// Eref e2( i2(), i );
+		ObjId oid( i2, i );
 		double temp = i;
-		bool ret = Field< double >::set( e2, "Vm", temp );
+		bool ret = Field< double >::set( oid, "Vm", temp );
 		assert( ret );
 		assert( 
-			doubleEq ( reinterpret_cast< IntFire* >(e2.data())->getVm() , temp ) );
+			doubleEq ( reinterpret_cast< IntFire* >(oid.data())->getVm() , temp ) );
 	}
 
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref e2( i2(), i );
+		// Eref e2( i2(), i );
+		ObjId oid( i2, i );
 		double temp = i;
-		double ret = Field< double >::get( e2, "Vm" );
+		double ret = Field< double >::get( oid, "Vm" );
 		assert( doubleEq( temp, ret ) );
 	}
 
@@ -598,27 +612,42 @@ void testSetGetSynapse()
 	assert( syn->dataHandler()->localEntries() == 0 );
 	// could/should use SetVec here.
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref e2( i2(), i );
-		bool ret = Field< unsigned int >::set( e2, "numSynapses", i );
+		// Eref e2( i2(), i );
+		ObjId oid( i2, i );
+		bool ret = Field< unsigned int >::set( oid, "numSynapses", i );
 		assert( ret );
 	}
 	assert( syn->dataHandler()->localEntries() == ( size * (size - 1) ) / 2 );
 
+	/*
+	** Can't run this here: the Process Loop has to be running first.
+	Eref sheller = Id().eref();
+	Shell* shell = reinterpret_cast< Shell* >( sheller.data() );
+	const Finfo* f = IntFire::initCinfo()->findFinfo( "get_numSynapses" );
+	const DestFinfo* df = dynamic_cast< const DestFinfo* >( f );
+	assert( df );
+	shell->doSyncDataHandler( i2, df->getFid() );
+	*/
+
+/*
+	*/
 	FieldDataHandlerBase * fdh =
 		static_cast< FieldDataHandlerBase *>( syn->dataHandler() );
-	fdh->syncFieldArraySize();
+	fdh->setFieldDimension( fdh->biggestFieldArraySize() );
+	// fdh->syncFieldArraySize();
 	assert( syn->dataHandler()->totalEntries() == 9900 );
 	// cout << "NumSyn = " << syn.totalEntries() << endl;
 	
 	for ( unsigned int i = 0; i < size; ++i ) {
 		for ( unsigned int j = 0; j < i; ++j ) {
 			DataId di( i, j );
-			Eref syne( syn, di );
+			// Eref syne( syn, di );
+			ObjId synoid( synId, di );
 			double temp = i * 1000 + j ;
-			bool ret = Field< double >::set( syne, "delay", temp );
+			bool ret = Field< double >::set( synoid, "delay", temp );
 			assert( ret );
 			assert( 
-			doubleEq( reinterpret_cast< Synapse* >(syne.data())->getDelay() , temp ) );
+			doubleEq( reinterpret_cast< Synapse* >(synoid.data())->getDelay() , temp ) );
 		}
 	}
 	cout << "." << flush;
@@ -657,13 +686,13 @@ void testSetGetVec()
 	
 	Eref e2( i2(), 0 );
 	// Here we test setting a 1-D vector
-	bool ret = Field< unsigned int >::setVec( e2, "numSynapses", numSyn );
+	bool ret = Field< unsigned int >::setVec( i2, "numSynapses", numSyn );
 	assert( ret );
 
 
 	vector< unsigned int > getSyn;
 	Eref tempE( e2.element(), DataId::any() );
-	Field< unsigned int >::getVec( tempE, "numSynapses", getSyn );
+	Field< unsigned int >::getVec( i2, "numSynapses", getSyn );
 	assert (getSyn.size() == size );
 	for ( unsigned int i = 0; i < size; ++i )
 		assert( getSyn[i] == i );
@@ -686,7 +715,7 @@ void testSetGetVec()
 	}
 
 	Eref se( syn, 0 );
-	ret = Field< double >::setVec( se, "delay", delay );
+	ret = Field< double >::setVec( synId, "delay", delay );
 	for ( unsigned int i = 0; i < size; ++i ) {
 		for ( unsigned int j = 0; j < i; ++j ) {
 			DataId di( i, j );
@@ -699,7 +728,7 @@ void testSetGetVec()
 	}
 	Eref syne( syn, DataId::any() );
 	vector< double > delayVec;
-	Field< double >::getVec( syne, "delay", delayVec );
+	Field< double >::getVec( synId, "delay", delayVec );
 	assert( delayVec.size() == size * size );
 	for ( unsigned int i = 0; i < size; ++i ) {
 		for ( unsigned int j = 0; j < i; ++j ) {
@@ -738,7 +767,7 @@ void testSetRepeat()
 	
 	Eref e2( i2(), 0 );
 	// Here we test setting a 1-D vector
-	bool ret = Field< unsigned int >::setVec( e2, "numSynapses", numSyn );
+	bool ret = Field< unsigned int >::setVec( i2, "numSynapses", numSyn );
 	assert( ret );
 	assert( syn->dataHandler()->totalEntries() == size );
 	unsigned int nd = syn->dataHandler()->localEntries();
@@ -747,7 +776,7 @@ void testSetRepeat()
 	
 	// Here we test setting a 2-D array with different dims on each axis.
 	Eref se( syn, 0 );
-	ret = Field< double >::setRepeat( se, "delay", 123.0 );
+	ret = Field< double >::setRepeat( synId, "delay", 123.0 );
 	assert( ret );
 	for ( unsigned int i = 0; i < size; ++i ) {
 		for ( unsigned int j = 0; j < i; ++j ) {
@@ -787,13 +816,15 @@ void testSendSpike()
 	assert( syn->dataHandler()->totalEntries() == size );
 	assert( syn->dataHandler()->localEntries() == 0 );
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref er( i2(), i );
-		bool ret = Field< unsigned int >::set( er, "numSynapses", i );
+		// Eref er( i2(), i );
+		ObjId oid( i2, i );
+		bool ret = Field< unsigned int >::set( oid, "numSynapses", i );
 		assert( ret );
 	}
 	FieldDataHandlerBase * fdh =
 		static_cast< FieldDataHandlerBase *>( syn->dataHandler() );
-	fdh->syncFieldArraySize();
+	fdh->setFieldDimension( fdh->biggestFieldArraySize() );
+	// fdh->syncFieldArraySize();
 	assert( fdh->localEntries() == ( size * (size - 1) ) / 2 );
 	assert( fdh->totalEntries() == size * ( size - 1) );
 
@@ -829,10 +860,11 @@ void testSendSpike()
 	assert( fabs( Vm + 1e-7) < EPSILON );
 	*/
 
-	Eref synParent( e2.element(), 1 );
+	// Eref synParent( e2.element(), 1 );
+	ObjId synParent( i2, 1 );
 	reinterpret_cast< IntFire* >(synParent.data())->setTau( TAU );
 
-	reinterpret_cast< IntFire* >(synParent.data())->process( synParent, &p );
+	reinterpret_cast< IntFire* >(synParent.data())->process( synParent.eref(), &p );
 	Vm = Field< double >::get( synParent, "Vm" );
 	assert( doubleEq( Vm , WEIGHT * ( 1.0 - DT / TAU ) ) );
 	// cout << "Vm = " << Vm << endl;
@@ -1017,7 +1049,8 @@ void printGrid( Element* e, const string& field, double min, double max )
 		if ( ( i % xside ) == 0 )
 			cout << endl;
 		Eref er( e, i );
-		double Vm = Field< double >::get( er, field );
+		ObjId oid( e->id(), i );
+		double Vm = Field< double >::get( oid, field );
 		int shape = 5.0 * ( Vm - min ) / ( max - min );
 		if ( shape > 4 )
 			shape = 4;
@@ -1087,7 +1120,8 @@ void testSparseMsg()
 	FieldDataHandlerBase* fd = dynamic_cast< FieldDataHandlerBase* >(
 		syne.element()->dataHandler() );
 	assert( fd );
-	fd->syncFieldArraySize();
+	fd->setFieldDimension( fd->biggestFieldArraySize() );
+	// fd->syncFieldArraySize();
 	unsigned int fieldSize = fd->biggestFieldArraySize();
 	// cout << "fieldSize = " << fieldSize << endl;
 	fd->setFieldDimension( fieldSize );
@@ -1100,7 +1134,7 @@ void testSparseMsg()
 	for ( unsigned int i = 0; i < size; ++i )
 		temp[i] = mtrand() * Vmax;
 
-	bool ret = Field< double >::setVec( e2, "Vm", temp );
+	bool ret = Field< double >::setVec( i2, "Vm", temp );
 	assert( ret );
 	/*
 	for ( unsigned int i = 0; i < 40; ++i )
@@ -1108,11 +1142,11 @@ void testSparseMsg()
 		*/
 	temp.clear();
 	temp.resize( size, thresh );
-	ret = Field< double >::setVec( e2, "thresh", temp );
+	ret = Field< double >::setVec( i2, "thresh", temp );
 	assert( ret );
 	temp.clear();
 	temp.resize( size, refractoryPeriod );
-	ret = Field< double >::setVec( e2, "refractoryPeriod", temp );
+	ret = Field< double >::setVec( i2, "refractoryPeriod", temp );
 	assert( ret );
 
 	vector< double > weight( size * fieldSize, 0.0 );
@@ -1142,9 +1176,9 @@ void testSparseMsg()
 		}
 	}
 	*/
-	ret = Field< double >::setVec( syne, "weight", weight );
+	ret = Field< double >::setVec( synId, "weight", weight );
 	assert( ret );
-	ret = Field< double >::setVec( syne, "delay", delay );
+	ret = Field< double >::setVec( synId, "delay", delay );
 	assert( ret );
 
 	// printGrid( i2(), "Vm", 0, thresh );
@@ -1205,7 +1239,8 @@ void testUpValue()
 	assert( ticke->dataHandler()->totalEntries() == 1 );
 	FieldDataHandlerBase * fdh =
 		static_cast< FieldDataHandlerBase *>( ticke->dataHandler() );
-	fdh->syncFieldArraySize();
+	fdh->setFieldDimension( fdh->biggestFieldArraySize() );
+	// fdh->syncFieldArraySize();
 	assert( ticke->dataHandler()->totalEntries() == 10 );
 	/*
 	bool ret = Field< unsigned int >::set( clocker, "numTicks", size );
@@ -1215,17 +1250,17 @@ void testUpValue()
 
 	for ( unsigned int i = 0; i < size; ++i ) {
 		DataId di( 0, i ); // DataId( data, field )
-		Eref te( ticke, di );
+		ObjId oid( tickId, di );
 		double dt = i;
-		bool ret = Field< double >::set( te, "dt", dt );
+		bool ret = Field< double >::set( oid, "dt", dt );
 		assert( ret );
-		double val = Field< double >::get( te, "localdt" );
+		double val = Field< double >::get( oid, "localdt" );
 		assert( doubleEq( dt, val ) );
 
 		dt *= 10.0;
-		ret = Field< double >::set( te, "localdt", dt );
+		ret = Field< double >::set( oid, "localdt", dt );
 		assert( ret );
-		val = Field< double >::get( te, "dt" );
+		val = Field< double >::get( oid, "dt" );
 		assert( doubleEq( dt, val ) );
 	}
 	cout << "." << flush;
@@ -1517,8 +1552,10 @@ void testSetGetExtField()
 
 	vector< double > vec;
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref a( e1, i );
-		Eref b( e1, size - i - 1 );
+		ObjId a( i1, i );
+		ObjId b( i1, size - i - 1);
+		// Eref a( e1, i );
+		// Eref b( e1, size - i - 1 );
 		double temp = i;
 		ret = Field< double >::set( a, "x", temp );
 		assert( ret );
@@ -1528,13 +1565,18 @@ void testSetGetExtField()
 		vec.push_back( temp2 - temp );
 	}
 
-	ret = Field< double >::setVec( Eref( e1, 0 ), "z", vec );
+	ret = Field< double >::setVec( i1, "z", vec );
 	assert( ret );
 
 	for ( unsigned int i = 0; i < size; ++i ) {
+		/*
 		Eref a( e2, i );
 		Eref b( e3, size - i - 1 );
 		Eref c( e4, i );
+		*/
+		ObjId a( i2, i );
+		ObjId b( i3, size - i - 1 );
+		ObjId c( i4, i );
 		double temp = i;
 		double temp2  = temp * temp;
 
@@ -1549,8 +1591,10 @@ void testSetGetExtField()
 	}
 
 	for ( unsigned int i = 0; i < size; ++i ) {
-		Eref a( e1, i );
-		Eref b( e1, size - i - 1 );
+		// Eref a( e1, i );
+		// Eref b( e1, size - i - 1 );
+		ObjId a( i1, i );
+		ObjId b( i1, size - i - 1 );
 
 		double temp = i;
 		double temp2  = temp * temp;
@@ -1839,6 +1883,157 @@ void testDataCopyAny()
 	cout << "." << flush;
 }
 
+void testOneDimHandler()
+{
+	Dinfo< int > dummyDinfo;
+	OneDimHandler odh( &dummyDinfo );
+	// nodeBalance( size, myNode, numNodes );
+	// Check start and end entries.
+	// Here we have 1000 entries on 10 nodes. Should be divided as
+	// 0 to 99, then 100 to 199, and so on.
+	// These would refer to the 'data' part of the DataId.
+	odh.innerNodeBalance( 1000, 0, 10 );
+	assert( odh.start_ == 0 );
+	assert( odh.end_ == 100 );
+
+	odh.innerNodeBalance( 1000, 1, 10 );
+	assert( odh.start_ == 100 );
+	assert( odh.end_ == 200 );
+
+	odh.innerNodeBalance( 1000, 9, 10 );
+	assert( odh.start_ == 900 );
+	assert( odh.end_ == 1000 );
+
+	// Next, test the iterators
+	OneDimHandler::iterator i = odh.begin();
+	assert ( i.index() == 900 );
+	assert( i.linearIndex() == 900 );
+
+	OneDimHandler::iterator end = odh.end();
+	assert( end.index() == 1000 );
+	assert( end.linearIndex() == 1000 );
+
+	++i;
+	assert ( i.index() == 901 );
+	assert( i.linearIndex() == 901 );
+	
+	cout << "." << flush;
+}
+
+void testFieldDataHandler()
+{
+	Dinfo< IntFire > dinfo1;
+	Dinfo< Synapse > dinfo2;
+	OneDimHandler odh( &dinfo1 );
+	// Check start and end entries.
+	// Here we have 1000 entries on 10 nodes. Should be divided as
+	// 0 to 99, then 100 to 199, and so on.
+	// These would refer to the 'data' part of the DataId.
+
+	unsigned int numNeurons = 1000;
+	unsigned int numNodes = 10;
+
+
+	// nodeBalance( size, myNode, numNodes );
+	odh.innerNodeBalance( numNeurons, 3, numNodes );
+	assert( odh.start_ == 300 );
+	assert( odh.end_ == 400 );
+
+	assert( odh.isAllocated() == 0 );
+
+	vector< unsigned int > dims( 1, numNeurons );
+
+	// The original resize function takes node info from Shell, so I can't
+	// use that here in this test. 
+	// odh.resize( dims );
+	// So here I use a function from inside the OneDimHandler.
+	odh.data_ = odh.dinfo()->allocData( odh.end_ - odh.start_ );
+
+	assert( odh.isAllocated() == 1 );
+	assert( odh.totalEntries() == numNeurons );
+	assert( odh.localEntries() == numNeurons / numNodes );
+	assert( odh.isDataHere( 0 ) == 0 );
+	assert( odh.isDataHere( 300 ) == 1 );
+	assert( odh.isDataHere( 399 ) == 1 );
+	assert( odh.isDataHere( 400 ) == 0 );
+	assert( odh.isDataHere( 999 ) == 0 );
+
+	// Next, test the iterators
+	OneDimHandler::iterator i = odh.begin();
+	assert ( i.index() == 300 );
+	assert( i.linearIndex() == 300 );
+
+	OneDimHandler::iterator end = odh.end();
+	assert( end.index() == 400 );
+	assert( end.linearIndex() == 400 );
+
+	++i;
+	assert ( i.index() == 301 );
+	assert( i.linearIndex() == 301 );
+
+	// Next, put in the FieldDataHandler.
+
+	FieldDataHandler< IntFire, Synapse > fdh( &dinfo2, &odh, 
+		&IntFire::getSynapse,
+		&IntFire::getNumSynapses,
+		&IntFire::setNumSynapses
+	);
+
+	vector< unsigned int > numSynVec( numNeurons, 0 );	
+	for ( unsigned int k = 0; k < numNeurons; ++k )
+		fdh.setFieldArraySize( k, k );
+
+	for ( unsigned int k = 0; k < numNeurons; ++k ) {
+		if ( k >= odh.start_ && k < odh.end_ )
+			assert( fdh.getFieldArraySize( k ) == k );
+		else
+			assert( fdh.getFieldArraySize( k ) == 0 );
+	}
+
+	assert( fdh.biggestFieldArraySize() == 399 );
+
+	fdh.setFieldDimension( 399 );
+	assert( fdh.getFieldDimension() == 399 );
+
+	i = fdh.begin();
+	assert( i.index() == DataId( 300, 0 ) );
+	assert( i.linearIndex() == 300 * 399 );
+	i++;
+
+	assert( i.index() == DataId( 300, 1 ) );
+	assert( i.linearIndex() == 300 * 399 + 1 );
+	for ( unsigned int k = 2; k < 300; ++k )
+		i++;
+
+	assert( i.index() == DataId( 300, 299 ) );
+	assert( i.linearIndex() == 300 * 399 + 299 );
+
+	i++;
+	assert( i.index() == DataId( 301, 0 ) );
+	assert( i.linearIndex() == 301 * 399 );
+
+	i++;
+	assert( i.index() == DataId( 301, 1 ) );
+	assert( i.linearIndex() == 301 * 399 + 1 );
+
+	for ( unsigned int k = 1; k < 301; ++k ) {
+		assert( i.index() == DataId( 301, k ) );
+		assert( i.linearIndex() == 301 * 399 + k );
+		assert( fdh.linearIndex( i.index() ) == i.linearIndex() );
+		i++;
+	}
+
+	assert( i.index() == DataId( 302, 0 ) );
+	assert( i.linearIndex() == 302 * 399 );
+
+
+	end = fdh.end();
+	assert( end.index() == DataId( 400, 0 ) );
+	assert( end.linearIndex() == 400 * 399 );
+	
+	cout << "." << flush;
+}
+
 void testAsync( )
 {
 	showFields();
@@ -1870,4 +2065,6 @@ void testAsync( )
 	testDataCopyZero();
 	testDataCopyOne();
 	testDataCopyAny();
+	testOneDimHandler();
+	testFieldDataHandler();
 }
