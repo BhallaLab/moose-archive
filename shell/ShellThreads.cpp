@@ -289,6 +289,14 @@ unsigned int Shell::reduceInt( unsigned int val )
 #endif
 }
 */
+static Msg* reduceMsg( Id tgt )
+{
+	static ReduceMsg ret( Msg::setMsg, Id().eref(), tgt(),
+		reduceArraySizeFinfo() );
+	
+	ret.setTgt( tgt );
+	return &ret;
+}
 
 void Shell::handleSync( const Eref& e, const Qinfo* q, Id elm, FuncId fid )
 {
@@ -312,9 +320,11 @@ void Shell::handleSync( const Eref& e, const Qinfo* q, Id elm, FuncId fid )
 		elm()->dataHandler() );
 		*/
 	const ReduceFinfoBase* rfb = reduceArraySizeFinfo();
-	shelle_->clearBinding( rfb->getBindIndex() );
+	// shelle_->clearBinding( lowLevelSetGet()->getBindIndex() );
 	if ( rfb )  {
-		Msg * m = new ReduceMsg( Msg::setMsg, e, elm(), rfb );
+		shelle_->clearBinding( rfb->getBindIndex() );
+//		Msg * m = new ReduceMsg( Msg::setMsg, e, elm(), rfb );
+		Msg* m = reduceMsg( elm );
 		shelle_->addMsgAndFunc( m->mid(), fid, rfb->getBindIndex() );
 		if ( myNode_ == 0 )
 			rfb->send( Eref( shelle_, 0 ), &p_, 0 );

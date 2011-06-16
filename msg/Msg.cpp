@@ -46,11 +46,26 @@ Msg::Msg( MsgId mid, Element* e1, Element* e2, Id managerId )
 Msg::~Msg()
 {
 	msg_[ mid_ ] = 0;
-	e1_->dropMsg( mid_ );
-	e2_->dropMsg( mid_ );
+	if ( e1_ )
+		e1_->dropMsg( mid_ );
+	if ( e2_ )
+		e2_->dropMsg( mid_ );
 
 	if ( mid_ > 1 )
 		garbageMsg_.push_back( mid_ );
+}
+
+void Msg::clearMsg( bool clearE1 )
+{
+	if ( e1_ )
+		e1_->dropMsg( mid_ );
+	if ( e2_ )
+		e2_->dropMsg( mid_ );
+	
+	e2_ = 0;
+
+	if ( clearE1 )
+		e1_ = 0;
 }
 
 /**

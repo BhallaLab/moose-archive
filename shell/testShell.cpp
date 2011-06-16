@@ -1478,18 +1478,21 @@ extern void testWildcard();
 
 void testMpiShell( )
 {
-	testShellParserCreateDelete();
-	testTreeTraversal();
-	testChildren();
-	testDescendant();
-	testMove();
-	testCopy();
-	testCopyFieldElement();
-	testShellSetGet();
-	testInterNodeOps();
-	testShellAddMsg();
-	testCopyMsgOps();
-	testWildcard();
+//	testShellParserCreateDelete();
+//	testTreeTraversal();
+//	testChildren();
+//	testDescendant();
+//	testMove();
+//	testCopy();
+//	testCopyFieldElement();
+
+// 	testShellSetGet();
+// 	testInterNodeOps();
+// 	testShellAddMsg();
+
+// 	testCopyMsgOps();
+// 	testWildcard();
+
 	testSyncSynapseSize();
 
 	// Stuff for doLoadModel

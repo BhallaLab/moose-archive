@@ -39,6 +39,9 @@ class ReduceMsg: public Msg
 		/// Return the first DataId
 		DataId getI1() const;
 
+		/// Change target. 
+		void setTgt( Id tgt );
+
 		/// Setup function for Element-style access to Msg fields.
 		static const Cinfo* initCinfo();
 	private:

@@ -42,6 +42,9 @@ class AssignmentMsg: public Msg
 		/// Return the second DataId
 		DataId getI2() const;
 
+		/// Assign the target Element
+		void setTgt( const Eref& tgt );
+
 		/// Setup function for Element-style access to Msg fields.
 		static const Cinfo* initCinfo();
 	private:

@@ -21,6 +21,7 @@
 #include "SparseMsg.h"
 #include "AssignmentMsg.h"
 #include "AssignVecMsg.h"
+#include "ReduceFinfo.h"
 #ifdef USE_MPI
 #include <mpi.h>
 #endif
@@ -251,14 +252,14 @@ void nonMpiTests( Shell* s )
 		if ( numCores > 0 )
 		// s->setHardware( isSingleThreaded, numCores, numNodes, myNode );
 		s->setHardware( 1, 1, 1, 0 );
-		testAsync();
-		testMsg();
-		testShell();
-		testScheduling();
-		testBuiltins();
-		testKinetics();
-		testBiophysics();
-		testGeom();
+//		testAsync();
+//		testMsg();
+//		testShell();
+//		testScheduling();
+//		testBuiltins();
+//		testKinetics();
+//		testBiophysics();
+//		testGeom();
 #ifdef USE_SMOLDYN
 		testSmoldyn();
 #endif
@@ -274,10 +275,10 @@ void nonMpiTests( Shell* s )
 void processTests( Shell* s )
 {
 #ifdef DO_UNIT_TESTS
-	testSchedulingProcess();
-	testBuiltinsProcess();
-	testKineticsProcess();
-	testBiophysicsProcess();
+//	testSchedulingProcess();
+//	testBuiltinsProcess();
+//	testKineticsProcess();
+//	testBiophysicsProcess();
 #endif
 }
 
@@ -292,9 +293,9 @@ void mpiTests()
 		cout << "." << flush;
 		testMpiShell();
 		cout << "." << flush;
-		testMpiBuiltins();
+//		testMpiBuiltins();
 		cout << "." << flush;
-		testMpiScheduling();
+//		testMpiScheduling();
 		cout << "." << flush;
 #endif
 }
@@ -329,6 +330,8 @@ int main( int argc, char** argv )
 	if ( !s->isSingleThreaded() )
 		s->joinThreads();
 
+	shelle->clearBinding( lowLevelSetGet()->getBindIndex(), 1 );
+	shelle->clearBinding( reduceArraySizeFinfo()->getBindIndex(), 1 );
 	Neutral* ns = reinterpret_cast< Neutral* >( shelle->dataHandler()->data( 0 ) );
 	ns->destroy( shellId.eref(), 0, 0 );
 #ifdef USE_MPI

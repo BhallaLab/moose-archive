@@ -197,14 +197,22 @@ void Element::addMsgAndFunc( MsgId mid, FuncId fid, BindIndex bindIndex )
 	msgBinding_[ bindIndex ].push_back( MsgFuncBinding( mid, fid ) );
 }
 
-void Element::clearBinding( BindIndex b )
+void Element::clearBinding( BindIndex b, bool clearE1 )
 {
 	assert( b < msgBinding_.size() );
 	vector< MsgFuncBinding > temp = msgBinding_[ b ];
 	msgBinding_[ b ].resize( 0 );
+	/*
 	for( vector< MsgFuncBinding >::iterator i = temp.begin(); 
 		i != temp.end(); ++i ) {
 		Msg::deleteMsg( i->mid );
+	}
+	*/
+	for( vector< MsgFuncBinding >::iterator i = temp.begin(); 
+		i != temp.end(); ++i ) {
+		Msg* m = Msg::safeGetMsg( i->mid );
+		if ( m )
+			m->clearMsg( clearE1);
 	}
 }
 

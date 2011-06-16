@@ -24,7 +24,7 @@ AssignVecMsg::AssignVecMsg( MsgId mid, Eref e1, Element* e2 )
 
 AssignVecMsg::~AssignVecMsg()
 {
-	;
+	e1_ = e2_ = 0; // So that the Elements are not invoked when removing.
 }
 
 void AssignVecMsg::exec( const char* arg, const ProcInfo *p ) const
@@ -102,6 +102,12 @@ void AssignVecMsg::addToQ( const Element* src, Qinfo& q,
 	} else if ( e2_ == src ) { // Not sure if we should allow back_msg here.
 		q.addToQbackward( p, i, arg ); 
 	}
+}
+
+/// Assign the target Element
+void AssignVecMsg::setTgt( const Eref& tgt )
+{
+	e2_ = tgt.element();
 }
 
 ///////////////////////////////////////////////////////////////////////

@@ -38,6 +38,9 @@ class AssignVecMsg: public Msg
 		/// Return the first DataId
 		DataId getI1() const;
 
+		/// Assign the target Element
+		void setTgt( const Eref& tgt );
+
 		/// Setup function for Element-style access to Msg fields.
 		static const Cinfo* initCinfo();
 	private:

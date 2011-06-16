@@ -25,6 +25,13 @@ class Msg
 		virtual ~Msg();
 
 		/**
+		 * Safely clears references to self in src and dest Elements,
+		 * then zeroes out the pointers. Used to clearMsgBinding without
+		 * deleting Msg itself.
+		 */
+		void clearMsg( bool clearE1 );
+
+		/**
  		 * Returns a MsgId for assigning to a new Msg.
  		 */
 		static MsgId nextMsgId();

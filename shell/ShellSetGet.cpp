@@ -28,6 +28,22 @@
 // Functions for handling field set/get and func calls
 ////////////////////////////////////////////////////////////////////////
 
+static Msg* assignVecMsg( const Eref& tgt )
+{
+	static AssignVecMsg ret( Msg::setMsg, Id().eref(), tgt.element() );
+	
+	ret.setTgt( tgt );
+	return &ret;
+}
+
+static Msg* assignmentMsg( const Eref& tgt )
+{
+	static AssignmentMsg ret( Msg::setMsg, Id().eref(), tgt );
+	
+	ret.setTgt( tgt );
+	return &ret;
+}
+
 void Shell::handleSet( const Eref& e, const Qinfo* q, 
 	Id id, DataId d, FuncId fid, PrepackedBuffer arg )
 {
@@ -39,9 +55,11 @@ void Shell::handleSet( const Eref& e, const Qinfo* q,
 	Msg* m;
 	
 	if ( arg.isVector() ) {
-		m = new AssignVecMsg( Msg::setMsg, sheller, er.element() );
+		m = assignVecMsg( er );
+		// m = new AssignVecMsg( Msg::setMsg, sheller, er.element() );
 	} else {
-		m = new AssignmentMsg( Msg::setMsg, sheller, er );
+		m = assignmentMsg( er );
+		// m = new AssignmentMsg( Msg::setMsg, sheller, er );
 		// innerSet( er, fid, arg.data(), arg.dataSize() );
 	}
 	shelle_->addMsgAndFunc( m->mid(), fid, lowLevelSetGet()->getBindIndex() );
@@ -117,7 +135,8 @@ void Shell::handleGet( const Eref& e, const Qinfo* q,
 
 	shelle_->clearBinding( lowLevelSetGet()->getBindIndex() );
 	if ( numTgt > 1 ) {
-		Msg* m = new AssignVecMsg( Msg::setMsg, sheller, tgt.element() );
+		Msg* m = assignVecMsg( tgt );
+		// Msg* m = new AssignVecMsg( Msg::setMsg, sheller, tgt.element() );
 		shelle_->addMsgAndFunc( m->mid(), fid, lowLevelSetGet()->getBindIndex() );
 		if ( myNode_ == 0 ) {
 			//Need to find numTgt
@@ -127,7 +146,8 @@ void Shell::handleGet( const Eref& e, const Qinfo* q,
 			lowLevelSetGet()->send( sheller, &p_, pb );
 		}
 	} else {
-		Msg* m = new AssignmentMsg( Msg::setMsg, sheller, tgt );
+		Msg* m = assignmentMsg( tgt );
+		// Msg* m = new AssignmentMsg( Msg::setMsg, sheller, tgt );
 		shelle_->addMsgAndFunc( m->mid(), fid, lowLevelSetGet()->getBindIndex());
 		if ( myNode_ == 0 ) {
 			PrepackedBuffer pb( 

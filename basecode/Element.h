@@ -120,9 +120,12 @@ class Element
 		void dropMsg( MsgId mid );
 		
 		/**
-		 * Clears out all Msgs on specified BindIndex. Used in Shell::set
+		 * Clears out all Msgs on specified BindIndex, without deleting
+		 * the Msgs themselves. Used to clean up after functions like
+		 * set, get and reduce where the Shell has to contact other
+		 * Elements with a temporary msg.
 		 */
-		void clearBinding( BindIndex b );
+		void clearBinding( BindIndex b, bool clearE1 = 0 );
 
 		/**
 		 * Pushes back the specified Msg and Func pair into the properly

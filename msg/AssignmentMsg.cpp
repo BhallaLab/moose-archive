@@ -24,7 +24,7 @@ AssignmentMsg::AssignmentMsg( MsgId mid, Eref e1, Eref e2 )
 
 AssignmentMsg::~AssignmentMsg()
 {
-	;
+	e1_ = e2_ = 0; // So that the Elements are not invoked when removing.
 }
 
 void sendAckBack( const ProcInfo* p, MsgId mid, DataId i2 )
@@ -108,6 +108,13 @@ void AssignmentMsg::addToQ( const Element* src, Qinfo& q,
 	} else if ( e2_ == src && i2_ == q.srcIndex() ) {
 		q.addToQbackward( p, i, arg );
 	}
+}
+
+/// Assign the target Element
+void AssignmentMsg::setTgt( const Eref& tgt )
+{
+	e2_ = tgt.element();
+	i2_ = tgt.index();
 }
 
 ///////////////////////////////////////////////////////////////////////

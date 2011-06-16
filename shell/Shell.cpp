@@ -1043,5 +1043,8 @@ void Shell::digestReduceFieldDimension(
 	maxIndex_ = arg->maxIndex();
 	// ack()->send( Eref( shelle_, 0 ), &p_, Shell::myNode(), OkStatus );
 	ack()->send( er, &p_, Shell::myNode(), OkStatus );
+	// I can't clear the binding here: the ack needs the Msg to figure
+	// out where to go.
+	// shelle_->clearBinding( reduceArraySizeFinfo()->getBindIndex() );
 }
 

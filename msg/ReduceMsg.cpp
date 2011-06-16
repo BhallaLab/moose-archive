@@ -24,7 +24,7 @@ ReduceMsg::ReduceMsg( MsgId mid, Eref e1, Element* e2, const ReduceFinfoBase* rf
 
 ReduceMsg::~ReduceMsg()
 {
-	;
+	e1_ = e2_ = 0; // So that the Elements are not invoked when removing.
 }
 
 void ReduceMsg::exec( const char* arg, const ProcInfo *p ) const
@@ -142,4 +142,12 @@ static const Cinfo* reduceMsgCinfo = ReduceMsg::initCinfo();
 DataId ReduceMsg::getI1() const
 {
 	return i1_;
+}
+
+
+
+void ReduceMsg::setTgt( Id tgt )
+{
+	assert( tgt != Id() );
+	e2_ = tgt();
 }
