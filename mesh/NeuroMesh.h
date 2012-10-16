@@ -49,17 +49,8 @@ class NeuroMesh: public ChemMesh
 		// Field assignment stuff
 		//////////////////////////////////////////////////////////////////
 
-		/**
-		 * Assigns the parent of all the cell compartments.
-		 */
 		void setCell( Id cellmodel );
 		Id getCell() const;
-
-		/**
-		 * Assigns a group of compartments to be used for the mesh.
-		 */
-		void setCellPortion( Id cell, vector< Id > portion );
-
 		/**
 		 * The SubTree is a contiguous set of compartments to model.
 		 * The first entry is the root of the tree, closest to the soma.
@@ -83,9 +74,6 @@ class NeuroMesh: public ChemMesh
 
 		void setDiffLength( double v );
 		double getDiffLength() const;
-
-		void setGeometryPolicy( string v );
-		string getGeometryPolicy() const;
 
 		unsigned int innerGetDimensions() const;
 
@@ -139,23 +127,6 @@ class NeuroMesh: public ChemMesh
 
 		void buildStencil();
 
-		//////////////////////////////////////////////////////////////////
-		// Utility functions for building tree.
-		/// This shuffles the nodes_ vector to put soma node at the start
-		Id putSomaAtStart( Id origSoma, unsigned int maxDiaIndex );
-
-		/**
-		 * buildNodeTree: This connects up parent and child nodes
-		 * and if needed inserts dummy nodes to build up the model tree.
-		 */
-		void buildNodeTree( const map< Id, unsigned int >& comptMap );
-
-		//////////////////////////////////////////////////////////////////
-		// Utility functions for testing
-		const Stencil* getStencil() const;
-		const vector< NeuroNode >& getNodes() const;
-
-		//////////////////////////////////////////////////////////////////
 		static const Cinfo* initCinfo();
 
 	private:
@@ -175,8 +146,7 @@ class NeuroMesh: public ChemMesh
 
 		/**
 		 * Volscale pre-calculations for each MeshEntry. 
-		 * vs = #molecules / vol
-		 * where vol is expressed in m^3.
+		 * vs = #mols / vol
 		 */
 		vector< double > vs_;
 
@@ -194,10 +164,9 @@ class NeuroMesh: public ChemMesh
 		/// Flag. True if mesh should ignore spines when scanning dend tree.
 		bool skipSpines_; 
 
-		string geometryPolicy_;
+		NeuroStencil ns_;
 
 		/*
-		NeuroStencil ns_;
 		bool useCaps_; // Flag: Should the ends have hemispherical caps?
 		double totLen_;	/// Utility value: Total length of cylinder
 		double rSlope_;	/// Utility value: dr/dx

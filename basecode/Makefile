@@ -87,7 +87,6 @@ HEADERS = \
 	SrcFinfo.h \
 	ValueFinfo.h \
 	LookupValueFinfo.h \
-	LookupElementValueFinfo.h \
 	SharedFinfo.h \
 	FieldElementFinfo.h \
 	MsgFuncBinding.h \

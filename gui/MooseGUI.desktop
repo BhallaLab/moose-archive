@@ -1,13 +1,11 @@
 #!/usr/bin/env xdg-open
 
 [Desktop Entry]
-Version=2.0
+Version=1.5beta
 Type=Application
 Terminal=true
-Icon[en_US]=moose_icon
+Icon[en_US]=/home/moose/moose_src/gui/icons/moose_icon.png
 Name[en_US]=MooseGUI
-Exec=/usr/bin/moosegui
+Exec=python /home/moose/moose_src/gui/MooseGUI.py
 Name=MooseGUI
-Icon=moose_icon
-Comment=Multi-scale Object-Oriented Simulation Environment
-Categories=Education;Science;Biology;Math
+Icon=/home/moose/moose_src/gui/icons/moose_icon.png

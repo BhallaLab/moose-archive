@@ -138,9 +138,10 @@ const Cinfo* Clock::initCinfo()
 			&Clock::getCurrentStep
 		);
 
-		static ReadOnlyValueFinfo< Clock, vector< double > > dts( 
-			"dts",
-			"Utility function returning the dt (timestep) of all ticks.",
+		static ReadOnlyValueFinfo< Clock, vector< double > > getDts( 
+			"getDts",
+			"Utility function returning the dts of all the ticks.",
+			// &Clock::setNumTicks,
 			&Clock::getDts
 		);
 
@@ -215,7 +216,7 @@ const Cinfo* Clock::initCinfo()
 		&nsteps,
 		&numTicks,
 		&currentStep,
-		&dts,
+		&getDts,
 		&isRunning,
 		// SrcFinfos
 		tickSrc(),
@@ -240,16 +241,16 @@ const Cinfo* Clock::initCinfo()
 		"function for every object that is connected to them."
 		"The default scheduling (should not be overridden) has the "
 		"following assignment of classes to Ticks:"
-		"0. Biophysics: Init call on Compartments in EE method"
-		"1. Biophysics: Channels"
-		"2. Biophysics: Process call on Compartments"
-		"3. Undefined "
-		"4. Kinetics: Pools, or in ksolve mode: Mesh to handle diffusion"
-		"5. Kinetics: Reacs, enzymes, etc, or in ksolve mode: Stoich/GSL"
-		"6. Stimulus tables"
-		"7. More stimulus tables"
-		"8. Plots"
-		"9. Slower graphics like cell arrays or 3-D displays"
+		"0: Biophysics - Init call on Compartments in EE method"
+		"1: Biophysics - Channels"
+		"2: Biophysics - Process call on Compartments"
+		"3: ?"
+		"4: Kinetics - Pools, or in ksolve mode: Mesh to handle diffusion"
+		"5: Kinetics - Reacs, enzymes, etc, or in ksolve mode: Stoich/GSL"
+		"6: Stimulus tables"
+		"7: More stimulus tables"
+		"8: Plots"
+		"9: Slower graphics like cell arrays or 3-D displays"
 		"",
 	};
 
@@ -282,7 +283,6 @@ Clock::Clock()
 	  info_(),
 	  numPendingThreads_( 0 ),
 	  numThreads_( 0 ),
-	  isDirty_( false ),
 	  currTickPtr_( 0 ),
 	  ticks_( Tick::maxTicks ),
 		countNull1_( 0 ),
@@ -403,8 +403,7 @@ void Clock::setTickDt( unsigned int i, double dt )
 {
 	if ( i < ticks_.size() ) {
 		ticks_[ i ].setDt( dt ); 
-		isDirty_ = true;
-		// rebuild(); deferred till 'start'.
+		rebuild();
 	} else {
 		cout << "Clock::setTickDt:: Tick " << i << " not found\n";
 	}
@@ -427,8 +426,9 @@ void Clock::setupTick( unsigned int tickNum, double dt )
 {
 	assert( tickNum < Tick::maxTicks );
 	ticks_[ tickNum ].setDt( dt );
-	isDirty_ = true;
-	// rebuild(); deferred till 'start'
+	// ticks_[ tickNum ].setStage( stage );
+	rebuild();
+	// ack()->send( clockId.eref(), p, p->nodeIndexInGroup, OkStatus );
 }
 
 ///////////////////////////////////////////////////
@@ -440,8 +440,6 @@ void Clock::addTick( Tick* t )
 	static const double EPSILON = 1.0e-9;
 
 	if ( t->getDt() < EPSILON )
-		return;
-	if ( !t->hasTickTargets() )
 		return;
 	for ( vector< TickMgr >::iterator j = tickMgr_.begin(); 
 		j != tickMgr_.end(); ++j)
@@ -472,10 +470,8 @@ void Clock::rebuild()
 	for( unsigned int i = 0; i < ticks_.size(); ++i ) {
 		addTick( &( ticks_[i] ) ); // This fills in only ticks that are used
 	}
-	if ( tickPtr_.size() == 0 ) { // Nothing happening in any of the ticks.
-		isDirty_ = false;
+	if ( tickPtr_.size() == 0 ) // Nothing happening in any of the ticks.
 		return;
-	}
 
 	// Here we put in current time so we can resume after changing a 
 	// dt. Given that we are rebuilding and cannot
@@ -488,8 +484,6 @@ void Clock::rebuild()
 
 	sort( tickPtr_.begin(), tickPtr_.end() );
 	dt_ = tickPtr_[0].mgr()->getDt();
-
-	isDirty_ = false;
 }
 
 
@@ -622,13 +616,8 @@ void Clock::handleStart( double runtime )
 		cout << "Clock::handleStart: Warning: simulation already in progress.\n Command ignored\n";
 		return;
 	}
-	// The currentTime_ check here is just a sanity check in case someone
-	// hard-wired additional messages into the Ticks, bypassing the 
-	// regular clock handling functions which would have set isDirty_.
-	if ( isDirty_ || currentTime_ == 0 )
-		rebuild();
 	if ( tickPtr_.size() == 0 || tickPtr_[0].mgr() == 0 ) {
-		cout << "Clock::handleStart: Warning: Nothing to simulate or simulation not yet initialized.\n Command ignored\n";
+		cout << "Clock::handleStart: Warning: simulation not yet initialized.\n Command ignored\n";
 		return;
 	}
 	runTime_ = runtime;
@@ -716,10 +705,8 @@ void Clock::advancePhase2(  ProcInfo *p )
  */
 void Clock::handleReinit()
 {
-	if ( isDirty_ )
-		rebuild();
 	info_.currTime = 0.0;
-	// runTime_ = 0.0;
+	runTime_ = 0.0;
 	currentTime_ = 0.0;
 	nextTime_ = 0.0;
 	nSteps_ = 0;
@@ -775,10 +762,9 @@ void Clock::reinitPhase1( ProcInfo* info )
 void Clock::reinitPhase2( ProcInfo* info )
 {
 	info->currTime = 0.0;
-
 	if ( Shell::isSingleThreaded() || info->threadIndexInGroup == 1 ) {
-		if ( tickPtr_.size() == 0 || 
-					tickPtr_[ currTickPtr_ ].mgr()->reinitPhase2( info ) ) {
+		assert( currTickPtr_ < tickPtr_.size() );
+		if ( tickPtr_[ currTickPtr_ ].mgr()->reinitPhase2( info ) ) {
 			++currTickPtr_;
 			if ( currTickPtr_ >= tickPtr_.size() ) {
 				Id clockId( 1 );

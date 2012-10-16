@@ -18,23 +18,11 @@
 class NeuroNode: public CylBase
 {
 	public:
-		/**
-		 * This function explicitly fills in all fields of the NeuroNode
-		 */
 		NeuroNode( const CylBase& cb, 
 			unsigned int parent, const vector< unsigned int >& children,
 			unsigned int startFid_, Id elecCompt,
 			bool isSphere );
-		/**
-		 * This builds the node using info from the compartment. But the
-		 * parent and children have to be filled in later
-		 */
-		NeuroNode( Id elecCompt );
-		/**
-		 * Empty constructor for vectors
-		 */
 		NeuroNode();
-
 
 		unsigned int parent() const;
 		unsigned int startFid() const;
@@ -56,27 +44,7 @@ class NeuroNode: public CylBase
 		bool isSphere() const;
 		bool isStartNode() const; // True if startFid_ == 0
 		const vector< unsigned int >& children() const;
-
-
-		/**
-		 * Fills in child vector
-		 */
 		void addChild( unsigned int child );
-
-		/**
-		 * Zeroes out the child vector
-		 */
-		void clearChildren();
-
-		/**
-		 * Assigns parent node info
-		 */
-		void setParent( unsigned int parent );
-
-		/**
-		 * Assignes startFid
-		 */
-		void setStartFid( unsigned int f );
 
 		/**
 		 * Calculates and returns compartment length, from parent xyz to

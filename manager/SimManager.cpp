@@ -103,14 +103,6 @@ const Cinfo* SimManager::initCinfo()
 			&SimManager::getVersion
 		);
 
-		static ReadOnlyElementValueFinfo< SimManager, string > modelFamily(
-			"modelFamily",
-			"Family classification of model: *kinetic, and *neuron "
-			"are the options so far. In due course expect to see things"
-			"like detailedNetwork, intFireNetwork, sigNeur and so on.",
-			&SimManager::getModelFamily
-		);
-
 		//////////////////////////////////////////////////////////////
 		// MsgDest Definitions
 		//////////////////////////////////////////////////////////////
@@ -129,14 +121,12 @@ const Cinfo* SimManager::initCinfo()
 		static DestFinfo meshSplit( "meshSplit",
 			"Handles message from ChemMesh that defines how"
 			"meshEntries communicate between nodes."
-			"First arg is oldvol, next is list of other nodes, third arg is list number of"
+			"First arg is list of other nodes, second arg is list number of"
 			"meshEntries to be transferred for each of these nodes, "
-			"fourth arg is catenated list of meshEntries indices on"
+			"third arg is catenated list of meshEntries indices on"
 			"my node going to each of the other connected nodes, and"
-			"last arg is matching list of meshEntries on other nodes",
-			new EpFunc5< SimManager, double, vector< unsigned int >, 
-			vector< unsigned int>, vector< unsigned int >, 
-			vector< unsigned int > >( &SimManager::meshSplit )
+			"fourth arg is matching list of meshEntries on other nodes",
+			new EpFunc4< SimManager, vector< unsigned int >, vector< unsigned int>, vector<     unsigned int >, vector< unsigned int > >( &SimManager::meshSplit )
 		);
 
 		static DestFinfo meshStats( "meshStats",
@@ -169,7 +159,6 @@ const Cinfo* SimManager::initCinfo()
 		&runTime,		// Value
 		&method,		// Value
 		&version,		// Value
-		&modelFamily,	// Value
 		&build,			// DestFinfo
 		&makeStandardElements,			// DestFinfo
 		&nodeMeshing,	// SharedFinfo
@@ -296,15 +285,6 @@ string SimManager::getMethod( const Eref& e, const Qinfo* q ) const
 {
 	return method_;
 }
-
-string SimManager::getModelFamily( const Eref& e, const Qinfo* q ) const
-{
-	Id mesh = findChemMesh();
-	if ( mesh != Id() )
-			return "kinetic";
-	return "unknown";
-}
-
 //////////////////////////////////////////////////////////////
 // MsgDest Definitions
 //////////////////////////////////////////////////////////////
@@ -408,7 +388,6 @@ void SimManager::makeStandardElements( const Eref& e, const Qinfo* q,
 }
 
 void SimManager::meshSplit( const Eref& e, const Qinfo* q,
-	double oldVol,
 	vector< unsigned int > nodeList, 
 	vector< unsigned int > numEntriesPerNode, 
 	vector< unsigned int > outgoingEntries, 
@@ -552,8 +531,6 @@ void SimManager::buildFromKkitTree( const Eref& e, const Qinfo* q,
 	shell->doSetClock( 6, simdt_ );
 	shell->doSetClock( 8, plotdt_ );
 	shell->doSetClock( 9, 0 );
-
-	Field< double >::set( Id( 1 ), "runTime", runTime_ );
 
 	string basePath = baseId_.path();
 	if ( method == "Gillespie" || method == "gillespie" || 

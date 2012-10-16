@@ -483,19 +483,11 @@ void Element::destroyElementTree( const vector< Id >& tree )
 {
 	for( vector< Id >::const_iterator i = tree.begin(); 
 		i != tree.end(); i++ )
-		i->element()->cinfo_ = 0; // Indicate that Element is doomed
-	bool killShell = false;
-
-	// Do not destroy the shell till the very end.
+		i->operator()()->cinfo_ = 0; // Indicate that Element is doomed
 	for( vector< Id >::const_iterator i = tree.begin(); 
-		i != tree.end(); i++ ) {
-		if ( *i == Id() )
-			killShell = true;
-		else
-			i->destroy();
-	}
-	if ( killShell )
-		Id().destroy();
+		i != tree.end(); i++ )
+		i->destroy();
+		// delete i->operator()();
 }
 
 void Element::zombieSwap( const Cinfo* newCinfo, DataHandler* newDataHandler )

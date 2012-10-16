@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # squidgui.py --- 
 # 
 # Filename: squidgui.py
@@ -7,9 +6,9 @@
 # Maintainer: 
 # Created: Mon Jul  9 18:23:55 2012 (+0530)
 # Version: 
-# Last-Updated: Thu Sep 27 17:56:12 2012 (+0530)
+# Last-Updated: Tue Jul 10 15:22:28 2012 (+0530)
 #           By: subha
-#     Update #: 824
+#     Update #: 662
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -101,22 +100,21 @@ class SquidGui(QtGui.QMainWindow):
         self.setDockNestingEnabled(True)
         self._createRunControl()
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self._runControlDock) 
-        self._runControlDock.setFeatures(QtGui.QDockWidget.AllDockWidgetFeatures)	 
+        self._runControlDock.setFeatures(QtGui.QDockWidget.DockWidgetMovable |QtGui.QDockWidget.DockWidgetFloatable )	 
         self._createChannelControl()
         self._channelCtrlBox.setWindowTitle('Channel properties')
-        self._channelControlDock.setFeatures(QtGui.QDockWidget.AllDockWidgetFeatures)	 
+        self._channelControlDock.setFeatures(QtGui.QDockWidget.DockWidgetMovable |QtGui.QDockWidget.DockWidgetFloatable )	 
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self._channelControlDock) 
         self._createElectronicsControl()
-        self._electronicsDock.setFeatures(QtGui.QDockWidget.AllDockWidgetFeatures)	 
+        self._electronicsDock.setFeatures(QtGui.QDockWidget.DockWidgetMovable |QtGui.QDockWidget.DockWidgetFloatable )	 
         self._electronicsDock.setWindowTitle('Electronics')
         self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self._electronicsDock) 
         self._createPlotWidget()             
         self.setCentralWidget(self._plotWidget)
         self._createStatePlotWidget()
-        self._createHelpMessage()
-        self._helpWindow.setVisible(False)
         self._statePlotWidget.setWindowFlags(QtCore.Qt.Window)
         self._statePlotWidget.setWindowTitle('State plot')
+        self._createHelpMessage()
         self._initActions()
         self._createRunToolBar()
         self._createPlotToolBar()
@@ -143,7 +141,7 @@ class SquidGui(QtGui.QMainWindow):
         self._i_axes = self._plotFigure.add_subplot(2,2,4, title='Channel current')
         self._i_axes.set_ylim(-10, 10)
         for axis in self._plotFigure.axes:
-            axis.set_autoscale_on(False)
+            axis.autoscale(False)
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self._plotCanvas)
         self._plotNavigator = NavigationToolbar(self._plotCanvas, self._plotWidget)
@@ -163,8 +161,8 @@ class SquidGui(QtGui.QMainWindow):
         self._state_plot, = self._statePlotAxes.plot([], [], label='state')
         self._activationParamAxes = self._statePlotFigure.add_subplot(2,1,2, title='H-H activation parameters vs time')
         self._activationParamAxes.set_xlabel('Time (ms)')
-        #for axis in self._plotFigure.axes:
-        #    axis.autoscale(False)
+        for axis in self._plotFigure.axes:
+            axis.autoscale(False)
         self._stateplot_xvar_label = QtGui.QLabel('Variable on X-axis')
         self._stateplot_xvar_combo = QtGui.QComboBox()
         self._stateplot_xvar_combo.addItems(['V', 'm', 'n', 'h'])
@@ -183,26 +181,17 @@ class SquidGui(QtGui.QMainWindow):
                      self._statePlotYSlot)
         self._statePlotNavigator = NavigationToolbar(self._statePlotCanvas, self._statePlotWidget)
         frame = QtGui.QFrame()
-        frame.setFrameStyle(QtGui.QFrame.StyledPanel + QtGui.QFrame.Raised)
         layout = QtGui.QHBoxLayout()
         layout.addWidget(self._stateplot_xvar_label)
         layout.addWidget(self._stateplot_xvar_combo)
         layout.addWidget(self._stateplot_yvar_label)
         layout.addWidget(self._stateplot_yvar_combo)
         frame.setLayout(layout)
-        self._closeStatePlotAction = QtGui.QAction('Close', self)
-        self.connect(self._closeStatePlotAction, QtCore.SIGNAL('triggered()'), self._statePlotWidget.close)
-        self._closeStatePlotButton = QtGui.QToolButton()
-        self._closeStatePlotButton.setDefaultAction(self._closeStatePlotAction)
         layout = QtGui.QVBoxLayout()
         layout.addWidget(frame)
         layout.addWidget(self._statePlotCanvas)
         layout.addWidget(self._statePlotNavigator)
-        layout.addWidget(self._closeStatePlotButton)
-        self._statePlotWidget.setLayout(layout)  
-        # Setting the close event so that when the help window is
-        # closed the ``State plot`` button becomes unchecked
-        self._statePlotWidget.closeEvent = lambda event: self._showStatePlotAction.setChecked(False)
+        self._statePlotWidget.setLayout(layout)        
 
     def _createRunControl(self):
         self._runControlBox = QtGui.QGroupBox(self)
@@ -469,16 +458,12 @@ class SquidGui(QtGui.QMainWindow):
         if self._autoscaleAction.isChecked():
             for axis in self._plotFigure.axes:
                 axis.relim()
-                axis.set_autoscale_on(True)
+                axis.autoscale(True, axis='y')
         else:
             self._vm_axes.set_ylim(-20.0, 120.0)
             self._g_axes.set_ylim(0.0, 0.5)
             self._im_axes.set_ylim(-0.5, 0.5)
             self._i_axes.set_ylim(-10, 10)
-        self._vm_axes.set_xlim(0.0, time_series[-1])
-        self._g_axes.set_xlim(0.0, time_series[-1])
-        self._im_axes.set_xlim(0.0, time_series[-1])
-        self._i_axes.set_xlim(0.0, time_series[-1])
         self._plotCanvas.draw()
 
     def _updateStatePlot(self):
@@ -513,7 +498,7 @@ class SquidGui(QtGui.QMainWindow):
         if self._autoscaleAction.isChecked():
             for axis in self._statePlotFigure.axes:
                 axis.relim()
-                axis.set_autoscale_on(True)
+                axis.autoscale(True, axis='both')
         self._statePlotCanvas.draw()
 
     def _runSlot(self):
@@ -576,10 +561,6 @@ class SquidGui(QtGui.QMainWindow):
         self._electronicsDock.setFloating(on)
         self._runControlDock.setFloating(on)
         
-    def _restoreDocks(self):
-        self._channelControlDock.setVisible(True)
-        self._electronicsDock.setVisible(True)
-        self._runControlDock.setVisible(True)
 
     def _initActions(self):
         self._runAction = QtGui.QAction(self.tr('Run'), self)
@@ -603,20 +584,15 @@ class SquidGui(QtGui.QMainWindow):
         self._overlayAction = QtGui.QAction('Overlay plots', self)
         self._overlayAction.setCheckable(True)
         self._overlayAction.setChecked(False) 
-        self._dockAction = QtGui.QAction('Undock all', self)
+        self._dockAction = QtGui.QAction('Undock all frames', self)
         self._dockAction.setCheckable(True)
         self._dockAction.setChecked(False)
         self.connect(self._dockAction, QtCore.SIGNAL('toggled(bool)'), self._toggleDocking)
-        self._restoreDocksAction = QtGui.QAction('Show all', self)
-        self.connect(self._restoreDocksAction, QtCore.SIGNAL('triggered()'), self._restoreDocks)
         self._helpAction = QtGui.QAction('Help', self)
-        self._helpAction.setCheckable(True)        
-        self.connect(self._helpAction, QtCore.SIGNAL('toggled(bool)'), self._helpWindow.setVisible)
+        self.connect(self._helpAction, QtCore.SIGNAL('triggered()'), self._helpMessage.exec_)
         self._quitAction = QtGui.QAction(self.tr('&Quit'), self)
         self._quitAction.setShortcut(self.tr('Ctrl+Q'))
         self.connect(self._quitAction, QtCore.SIGNAL('triggered()'), QtGui.qApp.closeAllWindows)
-
-        
 
     def _createRunToolBar(self):
         self._simToolBar = self.addToolBar(self.tr('Simulation control'))
@@ -624,7 +600,6 @@ class SquidGui(QtGui.QMainWindow):
         self._simToolBar.addAction(self._runAction)
         self._simToolBar.addAction(self._resetToDefaultsAction)
         self._simToolBar.addAction(self._dockAction)
-        self._simToolBar.addAction(self._restoreDocksAction)
 
     def _createPlotToolBar(self):
         self._plotToolBar = self.addToolBar(self.tr('Plotting control'))
@@ -648,10 +623,10 @@ class SquidGui(QtGui.QMainWindow):
         if on:
             for axis in (self._plotFigure.axes + self._statePlotFigure.axes):            
                 axis.relim()
-                axis.set_autoscale_on(True)
+                axis.autoscale(True, axis='y')
         else:
             for axis in self._plotFigure.axes:
-                axis.set_autoscale_on(False)            
+                axis.autoscale(False)            
             self._vm_axes.set_ylim(-20.0, 120.0)
             self._g_axes.set_ylim(0.0, 0.5)
             self._im_axes.set_ylim(-0.5, 0.5)
@@ -684,8 +659,7 @@ class SquidGui(QtGui.QMainWindow):
         self._pulseMode.setCurrentIndex(0)
 
     def _onScroll(self, event):
-        if event.inaxes is None:
-            return  
+        print '1'
         axes = event.inaxes
         zoom = 0.0
         if event.button == 'up':
@@ -701,47 +675,37 @@ class SquidGui(QtGui.QMainWindow):
     def closeEvent(self, event):
         QtGui.qApp.closeAllWindows()
 
+    
     def _createHelpMessage(self):
-        if hasattr(self, '_helpWindow'):
-            return
-        self._helpWindow = QtGui.QWidget()
-        self._helpWindow.setWindowFlags(QtCore.Qt.Window)
-        layout = QtGui.QVBoxLayout()
-        self._helpWindow.setLayout(layout)
-        self._helpMessageArea = QtGui.QScrollArea()
-        self._helpMessageText = QtGui.QTextBrowser()
-        self._helpMessageText.setOpenExternalLinks(True)
-        self._helpMessageArea.setWidget(self._helpMessageText)
-        layout.addWidget(self._helpMessageText)
-        self._helpBaseURL = 'help.html'
-        self._helpMessageText.setSource(QtCore.QUrl(self._helpBaseURL))
-        self._helpMessageText.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        self._helpMessageArea.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
-        self._helpMessageText.setMinimumSize(800, 600)
-        self._closeHelpAction = QtGui.QAction('Close', self)
-        self.connect(self._closeHelpAction, QtCore.SIGNAL('triggered()'), self._helpWindow.close)        
-        # Setting the close event so that the ``Help`` button is
-        # unchecked when the help window is closed
-        self._helpWindow.closeEvent = lambda event: self._helpAction.setChecked(False)
-        self._helpTOCAction = QtGui.QAction('Table of Contents', self)
-        self.connect(self._helpTOCAction, QtCore.SIGNAL('triggered()'), self._jumpToHelpTOC)        
-        # This panel is for putting two buttons using horizontal
-        # layout
-        panel = QtGui.QFrame()
-        panel.setFrameStyle(QtGui.QFrame.StyledPanel + QtGui.QFrame.Raised)
-        layout.addWidget(panel)
-        layout = QtGui.QHBoxLayout()
-        panel.setLayout(layout)
-        self._helpTOCButton = QtGui.QToolButton()
-        self._helpTOCButton.setDefaultAction(self._helpTOCAction)
-        layout.addWidget(self._helpTOCButton)
-        self._closeHelpButton = QtGui.QToolButton()
-        self._closeHelpButton.setDefaultAction(self._closeHelpAction)
-        layout.addWidget(self._closeHelpButton)
-        
-    def _jumpToHelpTOC(self):
-        self._helpMessageText.setSource(QtCore.QUrl(self._helpBaseURL))
+        self._helpMessage = QtGui.QMessageBox(self)
+        self._helpMessage.setText('Simulation of squid axon with Hodgkin-Huxley ion channels')
+        self._helpMessage.setInformativeText('<b>Navigation:</b>\
+<p>\
+<b>Zoom-in:</b> <br/>\
+a) scroll down, or<br/>\
+b) click magnifier icon and press left mouse button on the plot and drag, or<br/>\
+c) click compass icon and press right mouse button on the plot and drag towards top-right.<br/>\
+<b>Zoom-in X-axis:</b><br/>\
+click compass icon and press right mouse button on the plot and drag towards right.<br/>\
+<b>Zoom-in Y-axis:</b><br/>\
+click compass icon and press right mouse button on the plot and drag upwards.<br/>\
+<b>Zoom-out:</b> <br/>\
+a) scroll up, or<br/>\
+b) click magnifier icon and press right mouse button on the plot and drag<br/>\
+c) click compass icon and press right mouse button on the plot and drag towards bottom-left.<br/>\
+<B>Pan:</B> click compass-icon and left click-and-drag<br/>\
+<b>Zoom-out X-axis:</b> click compass icon and press right mouse button on the plot and drag towards left.<br/>\
+<b>Zoom-out Y-axis:</b> click compass icon and press right mouse button on the plot and drag downwards.<br/>\
+<b>Go forward/backward in zoom stack:</b> click right/left arrow icon.<br/>\
+<b>Reset to initial plot state:</b> click home icon.<br/>\
+<b>Change spacing and position of subplots:</b> click box-with-green arrow-heads<br/>\
+<b>Configure subplots:</b> click green tick-mark<br/>\
+<b>Save plot:</b> click floppy-disk icon.<br/>\
+</p>\
+')
 
+        
+        
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     app.connect(app, QtCore.SIGNAL('lastWindowClosed()'), app, QtCore.SLOT('quit()'))

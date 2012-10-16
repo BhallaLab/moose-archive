@@ -11,7 +11,6 @@
 #include <unistd.h> // need Windows-specific stuff too.
 
 void rtTestChem();
-void rtTestWriteKkit();
 
 void rtTable();
 void rtReacDiff();
@@ -35,7 +34,6 @@ void regressionTests()
 	cout << "\nRegression Tests:";
 	rtTable();
 	rtTestChem();
-	rtTestWriteKkit();
 
 	rtReacDiff();
 	rtHHnetwork( 10 );

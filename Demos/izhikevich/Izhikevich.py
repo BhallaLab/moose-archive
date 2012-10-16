@@ -6,9 +6,9 @@
 # Maintainer: 
 # Created: Fri May 28 14:42:33 2010 (+0530)
 # Version: 
-# Last-Updated: Tue Sep 11 14:27:18 2012 (+0530)
+# Last-Updated: Thu Jul  5 17:17:10 2012 (+0530)
 #           By: subha
-#     Update #: 1212
+#     Update #: 1208
 # URL: 
 # Keywords: 
 # Compatibility: 
@@ -51,12 +51,7 @@
 
 # Code:
 
-import time
 from numpy import *
-import os
-os.environ['NUMPTHREADS'] = '1'
-import sys
-sys.path.append('../../python')
 
 import moose
 
@@ -235,8 +230,6 @@ These neurons show bursting in response to inhibitory input."""
                 self.scheduled[obj] = True
         moose.reinit()
         moose.start(self.simtime)
-        while moose.isRunning():
-            time.sleep(100)
         time = linspace(0, IzhikevichDemo.parameters[key][7], len(Vm.vec))
         # DEBUG
         nrn = self._get_neuron(key)

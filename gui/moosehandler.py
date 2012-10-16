@@ -164,25 +164,10 @@ class MooseHandler(QtCore.QObject):
                     moose.delete(moose.ematrix('/KKIT'))
             else:
                 print 'Did not delete previously loaded file. Restart moose instead'
-            '''Harsha Dict is also cleaned up '''
-            modelpathTypeDict = {}
 
         for child in moose.element('/library').getField('children'):
             moose.delete(child)
 
-    """ Added: Harsha """
-    def saveGenesisModel(self,modelpath,filename):
-        """ Saving model to Genesis File Format"""
-        """ Default clock runtime is set to runtime in Genesis, but runtime has changed for 100sec during simulation.
-            Reason: moose is stopped for every 100s and plot data is pulled, during the simulation or end of the simulation, the clock would be 100 sec,
-            so while writing the genesis clock is set to original runtime from kkit so that writekkit.cpp would pickup runtime from clock, 
-            once model is saved its setback to 100s"""
-        running_runtime = self._context.element('/clock').runTime
-        self._context.element('/clock').setField('runTime',MooseHandler.runtime)
-        self._context.saveModel(modelpath,str(filename))
-        self._context.element('/clock').setField('runTime',running_runtime)
-        print "Model is saved in",filename
-        
     def loadModel(self, filename, filetype, target='/', solver='rk5'):
         """Load a model from file."""
         directory = os.path.dirname(filename)
@@ -314,12 +299,6 @@ class MooseHandler(QtCore.QObject):
             config.LOGGER.info('Connected %s to %s/%s' % (table.path, target.path, fieldName))
             self._tableIndex += 1
         return table
-
-    def updateDefaultsNeural(self,modelpath):
-        MooseHandler.simdt = MooseHandler.DEFAULT_SIMDT
-        MooseHandler.plotdt = MooseHandler.DEFAULT_PLOTDT
-        MooseHandler.plotupdate_dt = MooseHandler.DEFAULT_PLOTUPDATE_DT
-        MooseHandler.runtime = MooseHandler.DEFAULT_RUNTIME
 
     def updateDefaultsKKIT(self,modelpath):
         t = moose.element('/clock').tick

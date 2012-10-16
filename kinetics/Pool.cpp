@@ -68,7 +68,7 @@ const SrcFinfo1< double >* requestSize =
 	poolCinfo->findFinfo( "requestSize" ) );
 
 Pool::Pool()
-	: n_( 0.0 ), nInit_( 0.0 ), diffConst_( 0.0 ),
+	: n_( 0.0 ), concInit_( 0.0 ), diffConst_( 0.0 ),
 		A_( 0.0 ), B_( 0.0 ), species_( 0 )
 {;}
 
@@ -135,7 +135,6 @@ void Pool::decrement( double val )
 }
 
 void Pool::vRemesh( const Eref& e, const Qinfo* q, 
-	double oldvol,
 	unsigned int numTotalEntries, unsigned int startEntry, 
 	const vector< unsigned int >& localIndices, 
 	const vector< double >& vols )
@@ -148,7 +147,7 @@ void Pool::vRemesh( const Eref& e, const Qinfo* q,
 		*/
 	Neutral* n = reinterpret_cast< Neutral* >( e.data() );
 	assert( vols.size() > 0 );
-	double concInit = nInit_ / ( NA * oldvol );
+	double concInit = concInit_; // replace when we fix the conc access
 	if ( vols.size() != e.element()->dataHandler()->localEntries() )
 		n->setLastDimension( e, q, vols.size() );
 	// Note that at this point the Pool pointer may be invalid!
@@ -156,7 +155,8 @@ void Pool::vRemesh( const Eref& e, const Qinfo* q,
 	assert( e.element()->dataHandler()->localEntries() == vols.size() );
 	Pool* pooldata = reinterpret_cast< Pool* >( e.data() );
 	for ( unsigned int i = 0; i < vols.size(); ++i ) {
-		pooldata[i].nInit_ = pooldata[i].n_ = concInit * vols[i] * NA;
+		pooldata[i].n_ = concInit * vols[i] * NA;
+		pooldata[i].concInit_ = concInit;
 	}
 }
 
@@ -183,12 +183,12 @@ double Pool::vGetN( const Eref& e, const Qinfo*q ) const
 
 void Pool::vSetNinit( const Eref& e, const Qinfo* q, double v )
 {
-	nInit_ = v;
+	concInit_ =  v /  ( NA * lookupSizeFromMesh( e, requestSize ) );
 }
 
 double Pool::vGetNinit( const Eref& e, const Qinfo* q ) const
 {
-	return nInit_;
+	return NA * concInit_ * lookupSizeFromMesh( e, requestSize );
 }
 
 // Conc is given in millimolar. Size is in m^3
@@ -205,12 +205,14 @@ double Pool::vGetConc( const Eref& e, const Qinfo* q ) const
 
 void Pool::vSetConcInit( const Eref& e, const Qinfo* q, double c )
 {
-	nInit_ = NA * c * lookupSizeFromMesh( e, requestSize );
+	// nInit_ = NA * c * lookupSizeFromMesh( e, requestSize() );
+	concInit_ = c;
 }
 
 double Pool::vGetConcInit( const Eref& e, const Qinfo* q ) const
 {
-	return ( nInit_ / NA ) / lookupSizeFromMesh( e, requestSize );
+	return concInit_;
+	// return ( nInit_ / NA ) / lookupSizeFromMesh( e, requestSize() );
 }
 
 void Pool::vSetDiffConst( const Eref& e, const Qinfo* q, double v )

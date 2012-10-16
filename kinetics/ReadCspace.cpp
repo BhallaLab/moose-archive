@@ -282,8 +282,6 @@ void ReadCspace::expandEnzyme(
 		ret = shell->doAddMsg( "OneToOne", 
 			mol_[ name[ p2 ] - 'a' ], "reac", enzId, "prd" );
 
-	assert( ret != Msg::bad );
-
 	reac_.push_back( enzId );
 	parms_.push_back( DEFAULT_RATE );
 	parms_.push_back( DEFAULT_KM );
@@ -416,7 +414,7 @@ void ReadCspace::deployParameters( )
 		// SetField(mol_[ molseq_[i] ], "ninit", parms_[ i ] );
 
 		// Parameters are in micromolar, but the conc units are millimolar.
-		Field< double >::set( mol_[i], "nInit", parms_[i] * 1e-18 * NA *1e-3);
+		Field< double >::set( mol_[i], "concInit", parms_[i] * 1e-3 );
 	}
 	for ( j = 0; j < reac_.size(); j++ ) {
 		if ( reac_[ j ].element()->cinfo()->isA( "Reac" ) ) {

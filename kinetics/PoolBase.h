@@ -125,7 +125,6 @@ class PoolBase
 		void handleMolWt( const Eref& e, const Qinfo* q, double v );
 
 		void remesh( const Eref& e, const Qinfo* q, 
-			double oldVol,
 			unsigned int numTotalEntries, unsigned int startEntry, 
 			vector< unsigned int > localIndices, vector< double > vols );
 		//////////////////////////////////////////////////////////////////
@@ -139,7 +138,6 @@ class PoolBase
 		virtual void vHandleMolWt( const Eref& e, const Qinfo* q, double v);
 
 		virtual void vRemesh( const Eref& e, const Qinfo* q, 
-			double oldVol,
 			unsigned int numTotalEntries, unsigned int startEntry, 
 			const vector< unsigned int >& localIndices, 
 			const vector< double >& vols ) = 0;

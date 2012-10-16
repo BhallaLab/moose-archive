@@ -78,9 +78,9 @@ int HSolveUtils::gates(
 	unsigned int oldSize = ret.size();
 	
 	static string gateName[] = {
-		string( "gateX[0]" ),
-		string( "gateY[0]" ),
-		string( "gateZ[0]" )
+		string( "gateX" ),
+		string( "gateY" ),
+		string( "gateZ" )
 	};
 	
 	static string powerField[] = {
@@ -207,7 +207,7 @@ void HSolveUtils::rates(
 	unsigned int divs = HSolveUtils::get< HHGate, unsigned int >(
 		gateId, "divs" );
 	
-	if ( grid == Grid( min, max, divs ) ) {
+	if ( min == grid.min_ && max == grid.max_ && divs == grid.divs_ ) {
 		A = HSolveUtils::get< HHGate, vector< double > >( gateId, "tableA" );
 		B = HSolveUtils::get< HHGate, vector< double > >( gateId, "tableB" );
 		
@@ -230,9 +230,7 @@ void HSolveUtils::rates(
 	 */
 	bool useInterpolation = HSolveUtils::get< HHGate, bool >
 		( gateId, "useInterpolation" );
-	//~ HSolveUtils::set< HHGate, bool >( gateId, "useInterpolation", true );
-	Qinfo* qDummy = NULL;
-	gate->setUseInterpolation( gateId.eref(), qDummy, true );
+	HSolveUtils::set< HHGate, bool >( gateId, "useInterpolation", 1 );
 	
 	unsigned int igrid;
 	double* ia = &A[ 0 ];
@@ -244,9 +242,8 @@ void HSolveUtils::rates(
 	}
 	
 	// Setting interpolation flag back to its original value.
-	//~ HSolveUtils::set< HHGate, bool >
-		//~ ( gateId, "useInterpolation", useInterpolation );
-	gate->setUseInterpolation( gateId.eref(), qDummy, useInterpolation );
+	HSolveUtils::set< HHGate, bool >
+		( gateId, "useInterpolation", useInterpolation );
 }
 
 //~ int HSolveUtils::modes( Id gate, int& AMode, int& BMode )

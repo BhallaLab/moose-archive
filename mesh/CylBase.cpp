@@ -20,8 +20,7 @@ CylBase::CylBase( double x, double y, double z,
 		z_( z ),
 		dia_( dia ),
 		length_( length ),
-		numDivs_( numDivs ),
-		isCylinder_( false )
+		numDivs_( numDivs )
 {
 	;
 }
@@ -33,8 +32,7 @@ CylBase::CylBase()
 		z_( 0.0 ),
 		dia_( 1.0 ),
 		length_( 1.0 ),
-		numDivs_( 1.0 ),
-		isCylinder_( false )
+		numDivs_( 1.0 )
 {
 	;
 }
@@ -98,16 +96,6 @@ unsigned int CylBase::getNumDivs() const
 {
 	return numDivs_;
 }
-
-void CylBase::setIsCylinder( bool v )
-{
-	isCylinder_ = v;
-}
-
-bool CylBase::getIsCylinder() const
-{
-	return isCylinder_;
-}
 //////////////////////////////////////////////////////////////////
 // FieldElement assignment stuff for MeshEntries
 //////////////////////////////////////////////////////////////////
@@ -123,8 +111,6 @@ bool CylBase::getIsCylinder() const
  */
 double CylBase::volume( const CylBase& parent ) const
 {
-	if ( isCylinder_ )
-			return length_ * dia_ * dia_ * PI / 4.0;
 	double r0 = parent.dia_/2.0;
 	double r1 = dia_/2.0;
 	return length_ * ( r0*r0 + r0 *r1 + r1 * r1 ) * PI / 3.0;
@@ -141,9 +127,6 @@ double CylBase::volume( const CylBase& parent ) const
 double CylBase::voxelVolume( const CylBase& parent, unsigned int fid ) const
 {
 	assert( numDivs_ > fid );
-	if ( isCylinder_ )
-			return length_ * dia_ * dia_ * PI / ( 4.0 * numDivs_ );
-
  	double frac0 = ( static_cast< double >( fid ) ) / 
 				static_cast< double >( numDivs_ );
  	double frac1 = ( static_cast< double >( fid + 1 ) ) / 
@@ -187,21 +170,18 @@ vector< double > CylBase::getCoordinates(
 }
 
 /**
- * Returns diffusion cross-section from specified index to previous.
- * For index 0, this is cross-section area of parent.
+ * Returns diffusion cross-section from specified index to next.
+ * For index 0, this is cross-section to parent.
  * For index numDivs-1, it is the cross-section from the second-last to
  * the last voxel in this CylBase.
- * For index numDivs it is the area of this CylBase.
- * Thus there is no valid value for (index > numDivs), it has
+ * Thus there is no valid value for (index == numDivs - 1), it has
  * to be computed external to the CylBase, typically by calling the
  * getDiffusionArea for the child CylBase.
  */
 double CylBase::getDiffusionArea( 
 				const CylBase& parent, unsigned int fid ) const
 {
-	assert( fid < numDivs_ + 1 );
-	if ( isCylinder_ )
-			return PI * dia_ * dia_ / 4.0;
+	assert( fid < numDivs_ );
  	double frac0 = ( static_cast< double >( fid ) ) / 
 				static_cast< double >( numDivs_ );
 	double r0 = 0.5 * ( parent.dia_ * ( 1.0 - frac0 ) + dia_ * frac0 );

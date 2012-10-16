@@ -134,7 +134,7 @@ class CubeMesh: public ChemMesh
 		unsigned int neighbor( unsigned int spaceIndex, 
 			int dx, int dy, int dz ) const;
 
-		void transmitChange( const Eref& e, const Qinfo* q, double oldvol );
+		void transmitChange( const Eref& e, const Qinfo* q );
 		//////////////////////////////////////////////////////////////////
 		//  Stuff for diffusion
 		//////////////////////////////////////////////////////////////////

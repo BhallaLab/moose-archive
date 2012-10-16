@@ -545,7 +545,6 @@ void GssaStoich::process( const Eref& e, ProcPtr info )
 				// Probably cumulative roundoff error here. Simply
 				// recalculate atot to avoid, and redo.
 				updateAllRates( meshIndex );
-				atot = atot_[meshIndex];
 				continue;
 			}
 			transN_.fireReac( rindex, S_[meshIndex] );

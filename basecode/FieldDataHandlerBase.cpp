@@ -126,7 +126,7 @@ vector< vector< unsigned int > > FieldDataHandlerBase::pathIndices(
 {
 	vector< vector< unsigned int > > ret = 
 		parentDataHandler()->pathIndices( di.parentIndex( numFieldBits_ ) );
-	vector< unsigned int > temp( 1, di.myIndex( mask_ ) );
+	vector< unsigned int > temp( di.myIndex( mask_ ), 1 );
 	ret.push_back( temp );
 	return ret;
 }

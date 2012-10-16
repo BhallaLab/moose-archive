@@ -33,8 +33,6 @@ class SimManager
 		void setMethod( const Eref& e, const Qinfo* q, string v );
 		string getMethod( const Eref& e, const Qinfo* q ) const;
 
-		string getModelFamily( const Eref& e, const Qinfo* q ) const;
-
 		/// Destination function
 		void build( const Eref& e, const Qinfo* q, string method );
 
@@ -66,7 +64,6 @@ class SimManager
 		 */
 		void makeStandardElements( const Eref& e, const Qinfo*q, string meshClass );
 		void meshSplit( const Eref& e, const Qinfo* q, 
-			double oldVol,
 			vector< unsigned int > nodeList,
 			vector< unsigned int > numEntriesPerNode,
 			vector< unsigned int > outgoingEntries,

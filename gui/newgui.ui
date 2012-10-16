@@ -52,12 +52,116 @@
     <property name="title">
      <string>File</string>
     </property>
+    <widget class="QMenu" name="menuShell_Mode">
+     <property name="title">
+      <string>Shell Mode</string>
+     </property>
+     <addaction name="actionPython"/>
+     <addaction name="actionGenesis"/>
+    </widget>
     <addaction name="actionLoad_Model"/>
-    <addaction name="actionSave_Model"/>
-    <addaction name="actionMerge_Models"/>
-    <addaction name="actionSave_Plot"/>
+    <addaction name="actionNew_Plot"/>
+    <addaction name="menuShell_Mode"/>
     <addaction name="actionReset_Settings"/>
     <addaction name="actionQuit"/>
+   </widget>
+   <widget class="QMenu" name="menuClasses">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="title">
+     <string>Classes</string>
+    </property>
+    <widget class="QMenu" name="menuBase">
+     <property name="title">
+      <string>Base</string>
+     </property>
+     <addaction name="actionNeutral"/>
+     <addaction name="actionTick"/>
+    </widget>
+    <widget class="QMenu" name="menuBuiltins">
+     <property name="title">
+      <string>Builtins</string>
+     </property>
+     <addaction name="actionTimeTables"/>
+     <addaction name="actionInterpol"/>
+     <addaction name="actionAscFile"/>
+     <addaction name="actionInterpol2D"/>
+     <addaction name="actionCalculator"/>
+     <addaction name="actionTable"/>
+    </widget>
+    <widget class="QMenu" name="menuBipoPhysics">
+     <property name="title">
+      <string>BioPhysics</string>
+     </property>
+     <addaction name="actionHHChannel"/>
+     <addaction name="actionCell"/>
+     <addaction name="actionCompartment"/>
+     <addaction name="actionMg_block"/>
+     <addaction name="actionCaConc"/>
+     <addaction name="actionNerst"/>
+     <addaction name="actionTauPump"/>
+     <addaction name="actionIntFire"/>
+     <addaction name="actionIzhikevichNrn"/>
+     <addaction name="actionSymCompartment"/>
+     <addaction name="actionDifChan"/>
+     <addaction name="actionRandomSpike"/>
+     <addaction name="actionSpikeGen"/>
+     <addaction name="actionScript_out"/>
+     <addaction name="separator"/>
+     <addaction name="actionHHGate"/>
+     <addaction name="actionHHGate2D"/>
+     <addaction name="actionGHK"/>
+     <addaction name="actionHHChannel2D"/>
+     <addaction name="actionNMDAChan"/>
+     <addaction name="actionSynChan"/>
+     <addaction name="actionBinSynChan"/>
+     <addaction name="actionStochSynChan"/>
+    </widget>
+    <widget class="QMenu" name="menuKinects">
+     <property name="title">
+      <string>Kinects</string>
+     </property>
+     <addaction name="actionMolecule"/>
+     <addaction name="actionReaction"/>
+     <addaction name="actionSurface"/>
+     <addaction name="actionEnzyme"/>
+     <addaction name="actionParticle"/>
+     <addaction name="actionGeometry"/>
+     <addaction name="actionMathfunc"/>
+     <addaction name="actionKinComprt"/>
+     <addaction name="actionKinPlaceHolder"/>
+     <addaction name="separator"/>
+     <addaction name="actionPanel"/>
+     <addaction name="actionTriPanel"/>
+     <addaction name="actionCylPanel"/>
+     <addaction name="actionDiskHolder"/>
+     <addaction name="actionRectPanel"/>
+     <addaction name="actionSpherePanel"/>
+     <addaction name="actionHemispherePanel"/>
+    </widget>
+    <widget class="QMenu" name="menuDevice">
+     <property name="title">
+      <string>Device</string>
+     </property>
+     <addaction name="actionPulseGen"/>
+     <addaction name="actionDiffAmp"/>
+     <addaction name="actionRC"/>
+     <addaction name="actionPIDController"/>
+    </widget>
+    <widget class="QMenu" name="menuRobot">
+     <property name="title">
+      <string>Robot</string>
+     </property>
+     <addaction name="actionAdaptot"/>
+     <addaction name="actionSigNeur"/>
+    </widget>
+    <addaction name="menuBase"/>
+    <addaction name="menuBuiltins"/>
+    <addaction name="menuBipoPhysics"/>
+    <addaction name="menuKinects"/>
+    <addaction name="menuDevice"/>
+    <addaction name="menuRobot"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="enabled">
@@ -66,6 +170,7 @@
     <property name="title">
      <string>View</string>
     </property>
+    <addaction name="actionMoose_Shell"/>
     <addaction name="actionProperty_Editor"/>
     <addaction name="actionSimulation_Control"/>
     <addaction name="actionPlot_Config"/>
@@ -75,25 +180,21 @@
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="enabled">
-     <bool>true</bool>
+     <bool>false</bool>
     </property>
     <property name="title">
      <string>Edit</string>
     </property>
-    <addaction name="actionSettings"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Help</string>
     </property>
     <addaction name="actionAbout"/>
-    <addaction name="actionMooseGuiDocumentation"/>
-    <addaction name="actionNkitDocumentation"/>
-    <addaction name="actionKkitDocumentation"/>
-    <addaction name="actionPyMooseWalkThrough"/>
-    <addaction name="actionBuiltInDocumentation"/>
-    <addaction name="actionMooseCppDocumentation"/>
+    <addaction name="actionDemos"/>
+    <addaction name="actionDocumentation"/>
     <addaction name="actionReport_a_Bug"/>
+    <addaction name="actionRequest_a_Feature"/>
    </widget>
    <widget class="QMenu" name="menuRun">
     <property name="title">
@@ -115,6 +216,7 @@
    <addaction name="menuRun"/>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
+   <addaction name="menuClasses"/>
    <addaction name="menuSolver"/>
    <addaction name="menuHelp"/>
   </widget>
@@ -296,7 +398,11 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_5">
        <item>
-        <widget class="QLineEdit" name="popFilterSelectLineEdit"/>
+        <widget class="QLineEdit" name="popFilterSelectLineEdit">
+         <property name="placeholderText">
+          <string>filter</string>
+         </property>
+        </widget>
        </item>
        <item>
         <spacer name="horizontalSpacer_5">
@@ -515,7 +621,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="lineEdit_2"/>
+        <widget class="QLineEdit" name="lineEdit_2">
+         <property name="placeholderText">
+          <string>filter</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -592,7 +702,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="lineEdit_4"/>
+        <widget class="QLineEdit" name="lineEdit_4">
+         <property name="placeholderText">
+          <string>filter</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -1124,9 +1238,9 @@
     <enum>QAction::NoSoftKey</enum>
    </property>
   </action>
-  <action name="actionSave_Plot">
+  <action name="actionNew_Plot">
    <property name="text">
-    <string>Save All Plots</string>
+    <string>Save Plots</string>
    </property>
   </action>
   <action name="actionNew_Visualization">
@@ -1482,15 +1596,12 @@
     <string>First Time Wizard</string>
    </property>
   </action>
-  <action name="actionMooseGuiDocumentation">
+  <action name="actionDocumentation">
    <property name="text">
-    <string>MooseGUI documentation</string>
+    <string>Documentation</string>
    </property>
   </action>
   <action name="actionDemos">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Demos</string>
    </property>
@@ -1501,9 +1612,6 @@
    </property>
   </action>
   <action name="actionRequest_a_Feature">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
    <property name="text">
     <string>Request a Feature</string>
    </property>
@@ -1593,67 +1701,6 @@
     <string>Gillespie</string>
    </property>
   </action>
-  <action name="actionSettings">
-   <property name="text">
-    <string>Settings</string>
-   </property>
-   <property name="toolTip">
-    <string>Change moose configuration</string>
-   </property>
-  </action>
-  <action name="actionSave_Model">
-   <property name="text">
-    <string>Save Model</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+S</string>
-   </property>
-  </action>
-  <action name="actionMerge_Models">
-   <property name="text">
-    <string>Merge Models</string>
-   </property>
-  </action>
-  <action name="actionKkitDocumentation">
-   <property name="text">
-    <string>Kkit documentation</string>
-   </property>
-   <property name="toolTip">
-    <string>Display documentation for Kkit12 </string>
-   </property>
-  </action>
-  <action name="actionNkitDocumentation">
-   <property name="text">
-    <string>Nkit documentation</string>
-   </property>
-   <property name="toolTip">
-    <string>Display documentation of Nkit</string>
-   </property>
-  </action>
-  <action name="actionPyMooseWalkThrough">
-   <property name="text">
-    <string>pymoose scripting tutorial</string>
-   </property>
-   <property name="toolTip">
-    <string>PyMOOSE scripting tutorial for beginners</string>
-   </property>
-  </action>
-  <action name="actionMooseCppDocumentation">
-   <property name="text">
-    <string>C++ API documentation</string>
-   </property>
-   <property name="toolTip">
-    <string>Documentation generated from C++ sources by Doxygen</string>
-   </property>
-  </action>
-  <action name="actionBuiltInDocumentation">
-   <property name="text">
-    <string>Built-in documentation</string>
-   </property>
-   <property name="toolTip">
-    <string>Read built-in documentation at one place</string>
-   </property>
-  </action>
   <zorder>moosePopulationEditDock</zorder>
   <zorder>plotConfigDockWidget</zorder>
   <zorder>simControlDockWidget</zorder>
@@ -1663,7 +1710,7 @@
   <customwidget>
    <class>ObjectEditView</class>
    <extends>QWidget</extends>
-   <header>objectedit2.h</header>
+   <header>objectedit.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -16,8 +16,6 @@
 #include "Pool.h"
 #include "FuncPool.h"
 #include "BufPool.h"
-#include "ReacBase.h"
-#include "EnzBase.h"
 
 #include "../shell/Shell.h"
 #include "../manager/SimManager.h"
@@ -581,34 +579,6 @@ void ReadKkit::assignPoolCompartments()
 	}
 }
 
-Id findMeshOfReac( Id reac )
-{
-	static const Finfo* subFinfo =
-		   	ReacBase::initCinfo()->findFinfo( "toSub" );
-	assert( subFinfo );
-
-	static const Finfo* meshEntryFinfo =
-		   	PoolBase::initCinfo()->findFinfo( "requestSize" );
-	assert( meshEntryFinfo );
-
-		vector< Id > subVec;
-		unsigned int numSub = 
-				reac.element()->getNeighbours( subVec, subFinfo );
-		assert( numSub > 0 );
-		// For now just put the reac in the compt belonging to the 
-		// first substrate
-		vector< Id > meshEntries;
-		subVec[0].element()->getNeighbours( meshEntries, meshEntryFinfo );
-		assert (meshEntries.size() > 0 );
-
-		/*
-		ObjId mesh = Neutral::parent( meshEntries[0].eref() );
-
-		return mesh.id;
-		*/
-		return meshEntries[0];
-}
-
 /**
  * Goes through all Reacs and connects them up to each of the compartments
  * in which one or more of their reactants resides.
@@ -619,54 +589,17 @@ void ReadKkit::assignReacCompartments()
 {
 	// Temporarily just assign them to the base compartment.
 	// Possibly use compartments_ vector later.
-		/*
 	Id kinId = Neutral::child( baseId_.eref(), "kinetics" );
 	assert( kinId != Id() );
 	Id meshId = Neutral::child( kinId.eref(), "mesh" );
 	assert( meshId != Id() );
-	*/
 	for ( map< string, Id >::iterator i = reacIds_.begin(); 
 		i != reacIds_.end(); ++i ) {
-		Id meshId = findMeshOfReac( i->second );
 		MsgId ret = shell_->doAddMsg( "Single", 
 			ObjId( meshId, 0 ), "remeshReacs",
 			ObjId( i->second, 0 ), "remesh" );
 		assert( ret != Msg::bad );
 	}
-}
-
-
-/**
- * Return the MeshEntry into which the enzyme should be placed.
- * This is simple: Just identify the compartment holding the enzyme
- * molecule.
- */
-Id findMeshOfEnz( Id enz )
-{
-	static const Finfo* enzFinfo =
-		   	EnzBase::initCinfo()->findFinfo( "enzDest" );
-	assert( enzFinfo );
-
-	static const Finfo* meshEntryFinfo =
-		   	PoolBase::initCinfo()->findFinfo( "requestSize" );
-	assert( meshEntryFinfo );
-
-		vector< Id > enzVec;
-		unsigned int numEnz = 
-				enz.element()->getNeighbours( enzVec, enzFinfo );
-		assert( numEnz == 1 );
-		// For now just put the reac in the compt belonging to the 
-		// first substrate
-		vector< Id > meshEntries;
-		enzVec[0].element()->getNeighbours( meshEntries, meshEntryFinfo );
-		assert (meshEntries.size() > 0 );
-
-		/*
-		ObjId mesh = Neutral::parent( meshEntries[0].eref() );
-
-		return mesh.id;
-		*/
-		return meshEntries[0];
 }
 
 /**
@@ -679,15 +612,12 @@ void ReadKkit::assignEnzCompartments()
 {
 	// Temporarily just assign them to the base compartment.
 	// Possibly use compartments_ vector later.
-		/*
 	Id kinId = Neutral::child( baseId_.eref(), "kinetics" );
 	assert( kinId != Id() );
 	Id meshId = Neutral::child( kinId.eref(), "mesh" );
 	assert( meshId != Id() );
-	*/
 	for ( map< string, Id >::iterator i = enzIds_.begin(); 
 		i != enzIds_.end(); ++i ) {
-		Id meshId = findMeshOfEnz( i->second );
 		MsgId ret = shell_->doAddMsg( "Single", 
 			ObjId( meshId, 0 ), "remeshReacs",
 			ObjId( i->second, 0 ), "remesh" );
@@ -736,7 +666,7 @@ Id ReadKkit::buildEnz( const vector< string >& args )
 	// double vol = atof( args[ enzMap_[ "vol" ] ].c_str());
 	bool isMM = atoi( args[ enzMap_[ "usecomplex" ] ].c_str());
 	assert( poolVols_.find( pa ) != poolVols_.end() );
-	// double vol = poolVols_[ pa ];
+	double vol = poolVols_[ pa ];
 	
 	/**
 	 * vsf is vol scale factor, which is what GENESIS stores in 'vol' field
@@ -778,7 +708,7 @@ Id ReadKkit::buildEnz( const vector< string >& args )
 		assert( cplx != Id () );
 		poolIds_[ cplxPath ] = cplx; 
 		// Field< double >::set( cplx, "nInit", nComplexInit );
-		Field< double >::set( cplx, "nInit", nComplexInit );
+		Field< double >::set( cplx, "concInit", nComplexInit / ( NA * vol) );
 
 		// Use this later to assign mesh entries to enz cplx.
 		enzCplxMols_.push_back( pair< Id, Id >(  pa, cplx ) );
@@ -894,7 +824,7 @@ Id ReadKkit::buildPool( const vector< string >& args )
 	// skip the 10 chars of "/kinetics/"
 	poolIds_[ clean.substr( 10 ) ] = pool; 
 
-	Field< double >::set( pool, "nInit", nInit );
+	Field< double >::set( pool, "concInit", nInit / ( NA * vol) );
 	Field< double >::set( pool, "diffConst", diffConst );
 	// SetGet1< double >::set( pool, "setSize", vol );
 	separateVols( pool, vol );
@@ -957,11 +887,6 @@ void ReadKkit::buildSumTotal( const string& src, const string& dest )
 		// Turn dest into a FuncPool.
 		destId()->zombieSwap( FuncPool::initCinfo(), dup );
 		delete orig;
-
-		bool ret = shell_->doAddMsg( "single", 
-			ObjId( sumId, 0 ), "output",
-			ObjId( destId, 0 ), "input" ); 
-		assert( ret );
 	} else {
 		sumId = Neutral::child( destId.eref(), "sumFunc" );
 	}
@@ -979,6 +904,11 @@ void ReadKkit::buildSumTotal( const string& src, const string& dest )
 		ObjId( sumId, 0 ), "input" ); 
 	assert( ret );
 
+	ret = shell_->doAddMsg( "single", 
+		ObjId( sumId, 0 ), "output",
+		ObjId( destId, 0 ), "input" ); 
+
+	assert( ret );
 }
 
 /*
@@ -1153,11 +1083,8 @@ Id ReadKkit::buildTable( const vector< string >& args )
 		// loadTab is invoked.
 	}
 
-
 	string temp = clean.substr( 10 );
 	tabIds_[ temp ] = tab; 
-
-	Id info = buildInfo( tab, tableMap_, args );
 
 	return tab;
 }

@@ -320,8 +320,6 @@ void testGetMsg()
 		tabid, "num_table" );
 	assert( numEntries == 0 );
 	shell->doReinit();
-	numEntries = Field< unsigned int >::get( tabid, "num_table" );
-	assert( numEntries == 1 ); // One for reinit call.
 	SetGet1< double >::set( arithid, "arg1", 0.0 );
 	SetGet1< double >::set( arithid, "arg2", 2.0 );
 	shell->doStart( 100 );
@@ -423,15 +421,10 @@ void testStatsReduce()
 	shell->doStart( 1 );
 	*/
 	SetGet0::set( statsid, "trig" );
-	
-	Qinfo::clearQ( 1 );
-	Qinfo::clearQ( 1 );
 
-	/*
 	shell->doSetClock( 0, 1 );
 	shell->doReinit();
 	shell->doStart( 1 );
-	*/
 
 	double x = Field< double >::get( statsid, "sum" );
 	assert( doubleEq( x, sum ) );
@@ -550,7 +543,7 @@ void testBuiltinsProcess()
 {
 	testFibonacci();
 	testGetMsg();
-	// testStatsReduce();
+	testStatsReduce();
 }
 
 void testMpiBuiltins( )

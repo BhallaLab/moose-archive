@@ -72,65 +72,16 @@ class Stoich
 		void handleNodeDiffBoundary( unsigned int nodeNum, 
 			vector< unsigned int > meshEntries, vector< double > remoteS );
 
-		void meshSplit( double oldVol, vector< double > vols,
+		void meshSplit( vector< double > vols,
 			vector< unsigned int > localEntryList,
 			vector< vector< unsigned int > > outgoingDiffusion,
 			vector< vector< unsigned int > > incomingDiffusion
 		);
 
-		/**
-		 * In the case of reactions that cross compt boundaries and hence
-		 * solvers and meshes, I need to pass two things:
-		 * First, an identifier for which boundary.
-		 * Second, for all mesh entries, the pools which have a reaction
-		 * that crosses the boundary. 
-		 */
-		void handlePoolsReactingAcrossBoundary( 
-						unsigned int boundary, vector< double > );
-
-		/** 
-		 * In the case of reactions that cross compt boundaries and hence
-		 * solvers and meshes, I need to pass two things:
-		 * First, an identifier for which boundary.
-		 * Second, for all mesh entries, the reac rates for every 
-		 * reaction that crosses the boundary. 
-		 */
-		void handleReacRatesAcrossBoundary( 
-						unsigned int boundary, vector< double > );
-
-
-		/** When we have reactions that cross compartment boundaries,
-		 * we may have different solvers and meshes on either side.
-		 * Only one side does the calculations to assure mass 
-		 * conservation. 
-		 * There are rare cases when the calculations of one 
-		 * solver, typically a Gillespie one, gives such a large 
-		 * change that the concentrations on the other side would 
-		 * become negative in one or more molecules 
-		 * This message handles such cases on the Gillespie side, 
-		 * by telling the solver to roll back its recent 
-		 * calculation and instead use the specified vector for 
-		 * the rates, that is the # of mols changed in the latest 
-		 * timestep. 
-		 * This message handle info for two things: 
-		 * Arg 1: An identifier for the boundary. 
-		 * Arg 2: A vector of reaction rates for every reaction 
-		 * across the boundary, in every mesh entry.
-		 */
-		void handleReacRollbacksAcrossBoundary( 
-						unsigned int boundary, vector< double > );
-
 		//////////////////////////////////////////////////////////////////
 		// Model traversal and building functions
 		//////////////////////////////////////////////////////////////////
 		void allocateObjMap( const vector< Id >& elist );
-
-		/// Using the computed array sizes, now allocate space for them.
-		void resizeArrays();
-		/// Identifies and allocates objects in the Stoich.
-		void allocateModelObject( 
-				Id id, vector< Id >& bufPools, vector< Id >& funcPools );
-		/// Calculate sizes of all arrays, and allocate them.
 		void allocateModel( const vector< Id >& elist );
 
 		/**
@@ -141,15 +92,9 @@ class Stoich
 		void zombifyModel( const Eref& e, const vector< Id >& elist );
 
 		/**
-		 * Converts back to ExpEuler type basic kinetic Elements.
+		 * Converts back to EE type basic Elements.
 		 */
 		void unZombifyModel();
-
-		/// unZombifies Pools. Helper for unZombifyModel.
-		void unZombifyPools();
-		/// unZombifies Funcs. Helper for unZombifyModel.
-		void unZombifyFuncs();
-
 		void zombifyChemMesh( Id compt );
 
 		unsigned int convertIdToReacIndex( Id id ) const;

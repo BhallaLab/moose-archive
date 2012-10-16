@@ -21,7 +21,7 @@ class ZombieHandler: public DataHandler
 {
 	public:
 		ZombieHandler( const DataHandler* parentHandler,
-			DataHandler* origHander,
+			const DataHandler* origHander,
 			unsigned int start = 0, unsigned int end = 1 );
 
 		~ZombieHandler();
@@ -48,8 +48,6 @@ class ZombieHandler: public DataHandler
 
 		DataId pathDataId( const vector< vector< unsigned int > >& indices )
 			const;
-
-		DataHandler* origHandler() const;
 		////////////////////////////////////////////////////////////////
 		// load balancing functions
 		////////////////////////////////////////////////////////////////
@@ -107,8 +105,7 @@ class ZombieHandler: public DataHandler
 
 	private:
 		const DataHandler* parent_;
-		DataHandler* orig_; // Cannot have it a const, as we need to return
-			// original version when unzombifying.
+		const DataHandler* orig_;
 		unsigned int start_;
 		unsigned int end_;
 };

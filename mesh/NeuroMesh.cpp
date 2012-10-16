@@ -7,9 +7,7 @@
 ** See the file COPYING.LIB for the full notice.
 **********************************************************************/
 
-#include <cctype>
 #include "header.h"
-
 #include "ElementValueFinfo.h"
 #include "Boundary.h"
 #include "MeshEntry.h"
@@ -17,7 +15,6 @@
 #include "ChemMesh.h"
 #include "CylBase.h"
 #include "NeuroNode.h"
-#include "SparseMatrix.h"
 #include "NeuroStencil.h"
 #include "NeuroMesh.h"
 #include "../utility/numutil.h"
@@ -97,57 +94,9 @@ const Cinfo* NeuroMesh::initCinfo()
 			&NeuroMesh::getDiffLength
 		);
 
-		static ValueFinfo< NeuroMesh, string > geometryPolicy(
-			"geometryPolicy",
-			"Policy for how to interpret electrical model geometry (which "
-			"is a branching 1-dimensional tree) in terms of 3-D constructs"
-			"like spheres, cylinders, and cones."
-			"There are three options, default, trousers, and cylinder:"
-			"default mode:"
-	" - Use frustrums of cones. Distal diameter is always from compt dia."
-	" - For linear dendrites (no branching), proximal diameter is "
-	" diameter of the parent compartment"
-	" - For branching dendrites and dendrites emerging from soma,"
-	" proximal diameter is from compt dia. Don't worry about overlap."
-	" - Place somatic dendrites on surface of spherical soma, or at ends"
-	" of cylindrical soma"
-	" - Place dendritic spines on surface of cylindrical dendrites, not"
-	" emerging from their middle."
-	"trousers mode:"
-	" - Use frustrums of cones. Distal diameter is always from compt dia."
-	" - For linear dendrites (no branching), proximal diameter is "
-	" diameter of the parent compartment"
-	" - For branching dendrites, use a trouser function. Avoid overlap."
-	" - For soma, use some variant of trousers. Here we must avoid overlap"
-	" - For spines, use a way to smoothly merge into parent dend. Radius of"
-	" curvature should be similar to that of the spine neck."
-	" - Place somatic dendrites on surface of spherical soma, or at ends"
-	" of cylindrical soma"
-	" - Place dendritic spines on surface of cylindrical dendrites, not"
-	" emerging from their middle."
-	"cylinder mode:"
-	" - Use cylinders. Diameter is just compartment dia."
-	" - Place somatic dendrites on surface of spherical soma, or at ends"
-	" of cylindrical soma"
-	" - Place dendritic spines on surface of cylindrical dendrites, not"
-	" emerging from their middle."
-	" - Ignore spatial overlap.",
-			&NeuroMesh::setGeometryPolicy,
-			&NeuroMesh::getGeometryPolicy
-		);
-
 		//////////////////////////////////////////////////////////////
 		// MsgDest Definitions
 		//////////////////////////////////////////////////////////////
-
-		static DestFinfo setCellPortion( "setCellPortion",
-			"Tells NeuroMesh to mesh up a subpart of a cell. For now"
-			"assumed contiguous."
-			"The first argument is the cell Id. The second is the vector"
-			"of Ids to consider in meshing up the subpart.",
-			new OpFunc2< NeuroMesh, Id, vector< Id > >(
-				&NeuroMesh::setCellPortion )
-		);
 
 		//////////////////////////////////////////////////////////////
 		// Field Elements
@@ -160,8 +109,6 @@ const Cinfo* NeuroMesh::initCinfo()
 		&numSegments,		// ReadOnlyValue
 		&numDiffCompts,		// ReadOnlyValue
 		&diffLength,			// Value
-		&geometryPolicy,		// Value
-		&setCellPortion,			// DestFinfo
 	};
 
 	static Cinfo neuroMeshCinfo (
@@ -189,17 +136,20 @@ NeuroMesh::NeuroMesh()
 		size_( 0.0 ),
 		diffLength_( 0.5e-6 ),
 		skipSpines_( false ),
-		geometryPolicy_( "default" )
-{;}
+		ns_( nodes_, nodeIndex_, vs_, area_ )
+{
+	stencil_.resize( 1, &ns_ );
+}
 
 NeuroMesh::NeuroMesh( const NeuroMesh& other )
 	:
 		size_( other.size_ ),
 		diffLength_( other.diffLength_ ),
 		cell_( other.cell_ ),
-		skipSpines_( other.skipSpines_ ),
-		geometryPolicy_( other.geometryPolicy_ )
-{;}
+		ns_( nodes_, nodeIndex_, vs_, area_ )
+{
+	stencil_.resize( 1, &ns_ );
+}
 
 NeuroMesh& NeuroMesh::operator=( const NeuroMesh& other )
 {
@@ -211,7 +161,7 @@ NeuroMesh& NeuroMesh::operator=( const NeuroMesh& other )
 	diffLength_ = other.diffLength_;
 	cell_ = other.cell_;
 	skipSpines_ = other.skipSpines_;
-	geometryPolicy_ = other.geometryPolicy_;
+	stencil_.resize( 1, &ns_ );
 	return *this;
 }
 
@@ -227,47 +177,36 @@ NeuroMesh::~NeuroMesh()
 /**
  * This assumes that lambda is the quantity to preserve, over numEntries.
  * So when the compartment changes size, so does numEntries.
- * Assumes that the soma node is at index 0.
  */
 void NeuroMesh::updateCoords()
 {
-	unsigned int startFid = 0;
-	for ( vector< NeuroNode >::iterator i = nodes_.begin();
-				i != nodes_.end(); ++i ) {
-		if ( !i->isDummyNode() ) {
-			double len = i->getLength();
-			unsigned int numDivs = floor( 0.5 + len / diffLength_ );
-			if ( numDivs < 1 ) 
-				numDivs = 1;
-			i->setNumDivs( numDivs );
-			i->setStartFid( startFid );
-			startFid += numDivs;
-		}
+		/*
+	double temp = sqrt( 
+		( x1_ - x0_ ) * ( x1_ - x0_ ) + 
+		( y1_ - y0_ ) * ( y1_ - y0_ ) + 
+		( z1_ - z0_ ) * ( z1_ - z0_ )
+	);
+
+	if ( doubleEq( temp, 0.0 ) ) {
+		cout << "Error: NeuroMesh::updateCoords:\n"
+		"total length of compartment = 0 with these parameters\n";
+		return;
 	}
-	nodeIndex_.resize( startFid );
-	for ( unsigned int i = 0; i < nodes_.size(); ++i ) {
-		if ( !nodes_[i].isDummyNode() ) {
-			unsigned int end = nodes_[i].startFid() +nodes_[i].getNumDivs();
-			assert( end <= startFid );
-			assert( nodes_[i].getNumDivs() > 0 );
-			for ( unsigned int j = nodes_[i].startFid(); j < end; ++j )
-				nodeIndex_[j] = i;
-		}
+	totLen_ = temp;
+
+
+	temp = totLen_ / lambda_;
+	if ( temp < 1.0 ) {
+		lambda_ = totLen_;
+		numEntries_ = 1;
+	} else {
+		numEntries_ = static_cast< unsigned int >( round ( temp ) );
+		lambda_ = totLen_ / numEntries_;
 	}
-	// Assign volumes and areas
-	vs_.resize( startFid );
-	area_.resize( startFid );
-	for ( unsigned int i = 0; i < nodes_.size(); ++i ) {
-		const NeuroNode& nn = nodes_[i];
-		if ( !nn.isDummyNode() ) {
-			assert( nn.parent() < nodes_.size() );
-			const NeuroNode& parent = nodes_[ nn.parent() ];
-			for ( unsigned int j = 0; j < nn.getNumDivs(); ++j ) {
-				vs_[j + nn.startFid()] = NA * nn.voxelVolume( parent, j );
-				area_[j + nn.startFid()] = nn.getDiffusionArea( parent, j );
-			}
-		}
-	}
+	rSlope_ = ( r1_ - r0_ ) / numEntries_;
+	lenSlope_ = lambda_ * rSlope_ * 2 / ( r0_ + r1_ );
+
+	*/
 	buildStencil();
 }
 
@@ -282,170 +221,15 @@ double NeuroMesh::getDiffLength() const
 	return diffLength_;
 }
 
-void NeuroMesh::setGeometryPolicy( string v )
-{
-	// STL magic! Converts the string v to lower case. Unfortunately
-	// someone has overloaded tolower so it can have one or two args, so
-	// this marvellous construct is useless.
-	// std::transform( v.begin(), v.end(), v.begin(), std::tolower );
-	for( string::iterator i = v.begin(); i != v.end(); ++i )
-		*i = tolower( *i );
-
-	if ( !( v == "cylinder" || v == "trousers" || v == "default" ) ) {
-		cout << "Warning: NeuroMesh::setGeometryPolicy( " << v << 
-			" ):\n Mode must be one of cylinder, trousers, or default."
-			"Using default\n";
-		v = "default";
-	}
-
-	if ( v == geometryPolicy_ )
-			return;
-	geometryPolicy_ = v;
-	if ( cell_ != Id() )
-		setCell( cell_ );
-}
-
-string NeuroMesh::getGeometryPolicy() const
-{
-	return geometryPolicy_;
-}
-
 unsigned int NeuroMesh::innerGetDimensions() const
 {
 	return 3;
 }
 
-Id getParentFromMsg( Id id )
-{
-	const Element* e = id.element();
-	const Finfo* finfo = id.element()->cinfo()->findFinfo( "axialOut" );
-	if ( e->cinfo()->isA( "SymCompartment" ) )
-		finfo = id.element()->cinfo()->findFinfo( "raxialOut" );
-	assert( finfo );
-	vector< Id > ret;
-	id.element()->getNeighbours( ret, finfo );
-	assert( ret.size() <= 1 );
-	if ( ret.size() == 1 )
-			return ret[0];
-	else 
-			return Id();
-}
-
-Id NeuroMesh::putSomaAtStart( Id origSoma, unsigned int maxDiaIndex )
-{
-	Id soma = origSoma;
-	if ( nodes_[maxDiaIndex].elecCompt() == soma ) { // Happy, happy
-		;
-	} else if ( soma == Id() ) {
-		soma = nodes_[maxDiaIndex].elecCompt();
-	} else { // Disagreement. Ugh.
-		string name = nodes_[ maxDiaIndex ].elecCompt().element()->getName();
-		// OK, somehow this model has more than one soma compartment.
-		if ( strncasecmp( name.c_str(), "soma", 4 ) == 0 ) {
-			soma = nodes_[maxDiaIndex].elecCompt();
-		} else { 
-			cout << "Warning: named 'soma' compartment isn't biggest\n";
-			soma = nodes_[maxDiaIndex].elecCompt();
-		}
-	}
-	// Move soma to start of nodes_ vector.
-	if ( maxDiaIndex != 0 ) {
-		NeuroNode temp = nodes_[0];
-		nodes_[0] = nodes_[maxDiaIndex];
-		nodes_[maxDiaIndex] = temp;
-	}
-	return soma;
-}
-
-void NeuroMesh::buildNodeTree( const map< Id, unsigned int >& comptMap )
-{
-		// First pass: just build up the tree.
-	for ( unsigned int i = 0; i < nodes_.size(); ++i ) {
-		// returns Id() if no parent found.
-		Id pa = getParentFromMsg( nodes_[i].elecCompt() ); 
-		if ( pa != Id() ) {
-			map< Id, unsigned int >::const_iterator mapEntry = 
-					comptMap.find( pa );
-			assert( mapEntry != comptMap.end() );
-			unsigned int ipa = mapEntry->second;
-			// unsigned int ipa = comptMap[pa];
-			nodes_[i].setParent( ipa );
-			nodes_[ipa].addChild( i );
-		}
-	}
-	// Second pass: insert dummy nodes.
-	// Need to know if parent has multiple children, because each of
-	// them will need a dummyNode to connect to.
-	// In all the policies so far, the dummy nodes take the same diameter
-	// as the children that they host.
-	bool isCylinder = (geometryPolicy_ == "cylinder" );
-	for ( unsigned int i = 0; i < nodes_.size(); ++i ) {
-		vector< unsigned int > kids = nodes_[i].children();
-		if ( kids.size() > 1 ) {
-			for( unsigned int j = 0; j < kids.size(); ++j ) {
-				NeuroNode dummy( nodes_[ kids[j] ] );
-				dummy.clearChildren();
-				dummy.setNumDivs( 0 );
-				dummy.setIsCylinder( isCylinder );
-				// Don't worry about coords yet.
-				dummy.setX( nodes_[i].getX() );
-				dummy.setY( nodes_[i].getY() );
-				dummy.setZ( nodes_[i].getZ() );
-				// Now insert the dummy as a surrogate parent.
-				dummy.setParent( i );
-				dummy.addChild( kids[j] );
-				nodes_[ kids[j] ].setParent( nodes_.size() );
-				kids[j] = nodes_.size();
-				nodes_.push_back( dummy );
-			}
-			// Connect up the parent to the dummy nodes.
-			nodes_[i].clearChildren();
-			for( unsigned int j = 0; j < kids.size(); ++j )
-				nodes_[i].addChild( kids[j] );
-		}
-	}
-}
-
-// I assume 'cell' is the parent of the compartment tree.
 void NeuroMesh::setCell( Id cell )
 {
-		vector< Id > compts = Field< vector< Id > >::get( cell, "children");
-		setCellPortion( cell, compts );
-}
-
-// Here we set a portion of a cell, specified by a vector of Ids. We
-// also need to define the cell parent.
-void NeuroMesh::setCellPortion( Id cell, vector< Id > portion )
-{
+		// Much more to do here.
 		cell_ = cell;
-		vector< Id >& compts = portion;
-		map< Id, unsigned int > comptMap;
-
-		Id soma;
-		double maxDia = 0.0;
-		unsigned int maxDiaIndex = 0;
-		nodes_.resize( 0 );
-		for ( unsigned int i = 0; i < compts.size(); ++i ) {
-			if ( compts[i].element()->cinfo()->isA( "Compartment" ) ) {
-				comptMap[ compts[i] ] = nodes_.size();
-				nodes_.push_back( NeuroNode( compts[i] ) );
-				if ( nodes_.back().getDia() > maxDia ) {
-					maxDia = nodes_.back().getDia();
-					maxDiaIndex = nodes_.size() -1;
-				}
-				string name = compts[i].element()->getName();
-				if ( strncasecmp( name.c_str(), "soma", 4 ) == 0 ) {
-					soma = compts[i];
-				}
-			}
-		}
-		// Figure out soma compartment.
-		soma = putSomaAtStart( soma, maxDiaIndex );
-
-		// Assign parent and child compts to node entries.
-		buildNodeTree( comptMap );
-
-		updateCoords();
 }
 
 Id NeuroMesh::getCell() const
@@ -627,7 +411,6 @@ void NeuroMesh::innerHandleNodeInfo(
 {
 	unsigned int numEntries = nodeIndex_.size();
 	vector< double > vols( numEntries, 0.0 );
-	double oldVol = getMeshEntrySize( 0 );
 	for ( unsigned int i = 0; i < numEntries; ++i ) {
 		assert( nodeIndex_[i] < nodes_.size() );
 		NeuroNode& node = nodes_[ nodeIndex_[i] ];
@@ -639,7 +422,6 @@ void NeuroMesh::innerHandleNodeInfo(
 	vector< vector< unsigned int > > outgoingEntries;
 	vector< vector< unsigned int > > incomingEntries;
 	meshSplit()->send( e, q->threadNum(), 
-		oldVol,
 		vols, localEntries,
 		outgoingEntries, incomingEntries );
 }
@@ -753,7 +535,6 @@ void NeuroMesh::transmitChange( const Eref& e, const Qinfo* q )
 	vector< double > vols( localNumEntries, 0.0 );
 	vector< vector< unsigned int > > outgoingEntries; // [node#][Entry#]
 	vector< vector< unsigned int > > incomingEntries; // [node#][Entry#]
-	double oldVol = getMeshEntrySize( 0 );
 
 	// This function updates the size of the FieldDataHandler for the 
 	// MeshEntries.
@@ -767,14 +548,13 @@ void NeuroMesh::transmitChange( const Eref& e, const Qinfo* q )
 	// This message tells the Stoich about the new mesh, and also about
 	// how it communicates with other nodes.
 	meshSplit()->fastSend( e, q->threadNum(), 
-		oldVol,
 		vols, localIndices, 
 		outgoingEntries, incomingEntries );
 
 	// This func goes down to the MeshEntry to tell all the pools and
 	// Reacs to deal with the new mesh. They then update the stoich.
 	lookupEntry( 0 )->triggerRemesh( meshEntry.eref(), q->threadNum(), 
-		oldVol, startEntry, localIndices, vols );
+		startEntry, localIndices, vols );
 }
 
 //////////////////////////////////////////////////////////////////
@@ -782,21 +562,6 @@ void NeuroMesh::transmitChange( const Eref& e, const Qinfo* q )
 //////////////////////////////////////////////////////////////////
 void NeuroMesh::buildStencil()
 {
-	for ( unsigned int i = 0; i < stencil_.size(); ++i )
-		delete stencil_[i];
-	stencil_.resize( 1 );
-	stencil_[0] = new NeuroStencil( nodes_, nodeIndex_, vs_, area_);
+	; // stencil_.resize( 1, &ns_ );
 }
 
-
-const Stencil* NeuroMesh::getStencil() const
-{
-	if ( stencil_.size() > 0 )
-			return stencil_[0];
-	return 0;
-}
-
-const vector< NeuroNode >& NeuroMesh::getNodes() const
-{
-	return nodes_;
-}

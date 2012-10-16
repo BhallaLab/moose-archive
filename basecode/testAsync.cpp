@@ -1459,14 +1459,14 @@ void testUpValue()
 	assert ( ticke != 0 );
 	assert ( ticke->getName() == "tick" );
 
-	assert( ticke->dataHandler()->localEntries() == Tick::maxTicks );
+	assert( ticke->dataHandler()->localEntries() == 10 );
 	assert( ticke->dataHandler()->totalEntries() == 16 );
 	FieldDataHandlerBase * fdh =
 		static_cast< FieldDataHandlerBase *>( ticke->dataHandler() );
 	// fdh->setFieldDimension( fdh->biggestFieldArraySize() );
 	fdh->resize( fdh->numDimensions() - 1, fdh->biggestFieldArraySize() );
 	// fdh->syncFieldArraySize();
-	assert( ticke->dataHandler()->totalEntries() == Tick::maxTicks );
+	assert( ticke->dataHandler()->totalEntries() == 10 );
 	/*
 	bool ret = Field< unsigned int >::set( clocker, "numTicks", size );
 	assert( ret );
@@ -2749,7 +2749,7 @@ void testCinfoFields()
 	assert( cinfo->getValueFinfo( 2 + nvf ) == cinfo->findFinfo( "tau" ) );
 
 	unsigned int nlf = neutralCinfo->getNumLookupFinfo();
-	assert( nlf == 1 ); // Neutral inserts a lookup field for neighbours
+	assert( nlf == 0 );
 	assert( cinfo->getNumLookupFinfo() == 0 + nlf );
 	assert( cinfo->getLookupFinfo( 0 + nlf )->name() == "dummy");
 

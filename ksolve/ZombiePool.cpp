@@ -71,7 +71,6 @@ ZombiePool::~ZombiePool()
 // Stoich. None of the ZombiePools is remeshed directly. However, their
 // DataHandlers need updating.
 void ZombiePool::vRemesh( const Eref& e, const Qinfo* q, 
-	double oldvol,
 	unsigned int numTotalEntries, unsigned int startEntry, 
 	const vector< unsigned int >& localIndices, 
 	const vector< double >& vols )
@@ -110,14 +109,8 @@ double ZombiePool::vGetN( const Eref& e, const Qinfo* q ) const
 
 void ZombiePool::vSetNinit( const Eref& e, const Qinfo* q, double v )
 {
-	// stoich_->innerSetNinit( e.index().value(), e.id(), v );
-	unsigned int i = e.index().value();
-	stoich_->innerSetNinit( i, e.id(), v );
-	if ( i == 0 ) {
-		double conc = v / ( NA * lookupSizeFromMesh( e, requestSize ) );
-		stoich_->setConcInit( stoich_->convertIdToPoolIndex( e.id() ), 
-			conc );
-	}
+	stoich_->innerSetNinit( e.index().value(), e.id(), v );
+	// Sinit_[ e.index().value() ][ convertIdToPoolIndex( e.id() ) ] = v;
 }
 
 double ZombiePool::vGetNinit( const Eref& e, const Qinfo* q ) const

@@ -7,9 +7,9 @@
 // Copyright (C) 2010 Subhasis Ray, all rights reserved.
 // Created: Thu Mar 10 11:26:00 2011 (+0530)
 // Version: 
-// Last-Updated: Sat Sep 29 17:54:57 2012 (+0530)
+// Last-Updated: Wed Sep  5 16:13:17 2012 (+0530)
 //           By: subha
-//     Update #: 10119
+//     Update #: 9976
 // URL: 
 // Keywords: 
 // Compatibility: 
@@ -163,8 +163,8 @@ struct module_state {
 static struct module_state _state;
 #endif // PY_MAJOR_VERSION
 
-#define RAISE_INVALID_ID(ret, msg) {                         \
-        PyErr_SetString(PyExc_ValueError, msg": invalid Id"); \
+#define RAISE_INVALID_ID(ret) {                          \
+        PyErr_SetString(PyExc_ValueError, "invalid Id"); \
         return ret;                                      \
     }
     
@@ -657,12 +657,10 @@ static struct module_state _state;
             PyErr_SetString(PyExc_TypeError, "Owner must be subtype of ObjId");
             return -1;
         }
-        self->owner = ((_ObjId*)owner)->oid_;
         if (!Id::isValid(self->owner.id)){
-            Py_XDECREF(owner);
-            Py_XDECREF(self);
-            RAISE_INVALID_ID(-1, "moose_Field_init");
+            RAISE_INVALID_ID(-1);
         }
+        self->owner = ((_ObjId*)owner)->oid_;
         size_t size = strlen(fieldName);
         char * name = (char*)calloc(size+1, sizeof(char));
         strncpy(name, fieldName, size);
@@ -680,7 +678,7 @@ static struct module_state _state;
     static long moose_Field_hash(_Field * self)
     {
         if (!Id::isValid(self->owner.id)){
-            RAISE_INVALID_ID(-1, "moose_Field_hash");
+            RAISE_INVALID_ID(-1);
         }
         string fieldPath = self->owner.path() + "." + self->name;
         PyObject * path = PyString_FromString(fieldPath.c_str());
@@ -693,7 +691,7 @@ static struct module_state _state;
     static PyObject * moose_Field_repr(_Field * self)
     {
         if (!Id::isValid(self->owner.id)){
-            RAISE_INVALID_ID(NULL, "moose_Field_repr");
+            RAISE_INVALID_ID(NULL);
         }
         ostringstream fieldPath;
         fieldPath << self->owner.path() << "." << self->name;
@@ -1307,7 +1305,7 @@ static struct module_state _state;
             return NULL;
         }
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_delete");
+            RAISE_INVALID_ID(NULL);
         }
         SHELLPTR->doDelete(self->id_);
         self->id_ = Id();
@@ -1318,11 +1316,10 @@ static struct module_state _state;
     static PyObject * moose_Id_repr(_Id * self)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_repr");
+            RAISE_INVALID_ID(NULL);
         }
         ostringstream repr;
-        repr << "<moose.ematrix: class="
-             << Field<string>::get(self->id_, "class") << ", "
+        repr << "<moose.ematrix: class=" << Field<string>::get(self->id_, "class") << "): "
              << "id=" << self->id_.value() << ","
              << "path=" << self->id_.path() << ">";
         return PyString_FromString(repr.str().c_str());
@@ -1332,11 +1329,9 @@ static struct module_state _state;
     static PyObject * moose_Id_str(_Id * self)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_str");
+            RAISE_INVALID_ID(NULL);
         }        
-        return PyString_FromFormat("<moose.ematrix: class=%s, id=%u, path=%s>",
-                                   Field<string>::get(self->id_, "class").c_str(),
-                                   self->id_.value(), self->id_.path().c_str());
+        return PyString_FromFormat("<moose.ematrix: id=%u, path=%s>", self->id_.value(), self->id_.path().c_str());
     } // !  moose_Id_str
 
     // 2011-03-23 15:09:19 (+0530)
@@ -1352,7 +1347,7 @@ static struct module_state _state;
     static PyObject * moose_Id_getPath(_Id * self)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_getPath");
+            RAISE_INVALID_ID(NULL);
         }        
         string path = self->id_.path();
         PyObject * ret = Py_BuildValue("s", path.c_str());
@@ -1364,7 +1359,7 @@ static struct module_state _state;
     static Py_ssize_t moose_Id_getLength(_Id * self)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(-1, "moose_Id_getLength");
+            RAISE_INVALID_ID(-1);
         }        
         vector< unsigned int> dims = Field< vector <unsigned int> >::get(ObjId(self->id_), "objectDimensions");
         if (dims.empty()){
@@ -1377,7 +1372,7 @@ static struct module_state _state;
     {
         vector< unsigned int> dims = Field< vector <unsigned int> >::get(self->id_, "objectDimensions");
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_getShape");
+            RAISE_INVALID_ID(NULL);
         }        
         if (dims.empty()){
             dims.push_back(1);
@@ -1395,7 +1390,7 @@ static struct module_state _state;
     static PyObject * moose_Id_getItem(_Id * self, Py_ssize_t index)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_getItem");
+            RAISE_INVALID_ID(NULL);
         }        
         extern PyTypeObject ObjIdType;
         if (index < 0){
@@ -1412,7 +1407,7 @@ static struct module_state _state;
     static PyObject * moose_Id_getSlice(_Id * self, PyObject * args)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_getSlice");
+            RAISE_INVALID_ID(NULL);
         }        
         extern PyTypeObject ObjIdType;
         Py_ssize_t start, end;
@@ -1535,7 +1530,7 @@ static struct module_state _state;
     {
         extern PyTypeObject ObjIdType;
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_getattro");
+            RAISE_INVALID_ID(NULL);
         }        
         char * field = PyString_AsString(attr);
         PyObject * _ret = get_Id_attr(self, field);
@@ -1637,7 +1632,7 @@ static struct module_state _state;
     static PyObject * moose_Id_setField(_Id * self, PyObject * args)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(NULL, "moose_Id_setField");
+            RAISE_INVALID_ID(NULL);
         }        
         PyObject * field = NULL;
         PyObject * value = NULL;
@@ -1653,7 +1648,7 @@ static struct module_state _state;
     static int moose_Id_setattro(_Id * self, PyObject * attr, PyObject *value)
     {
         if (!Id::isValid(self->id_)){
-            RAISE_INVALID_ID(-1, "moose_Id_setattro");
+            RAISE_INVALID_ID(-1);
         }
         char * fieldname = NULL;
         int ret = -1;
@@ -1878,46 +1873,31 @@ static struct module_state _state;
         _ObjId * instance = (_ObjId*)self;
         unsigned int id = 0, data = 0, field = 0, numFieldBits = 0;
         PyObject * obj = NULL;
-        if ((kwargs && PyArg_ParseTupleAndKeywords(args, kwargs,
+        if (PyArg_ParseTupleAndKeywords(args, kwargs,
                                         "I|III:moose_ObjId_init",
                                         kwlist,
-                                        &id, &data, &field, &numFieldBits))
-            || (!kwargs && PyArg_ParseTuple(args, "I|III:moose_ObjId_init_from_id",
-                                            &id, &data, &field, &numFieldBits))){
-            PyErr_Clear();
+                                        &id, &data, &field, &numFieldBits)){
             if (!Id::isValid(id)){
-                RAISE_INVALID_ID(-1, "moose_ObjId_init_from_id");
+                RAISE_INVALID_ID(-1);
             }
             instance->oid_ = ObjId(Id(id), DataId(data, field, numFieldBits));
             return 0;
         }
         PyErr_Clear();
-        if ((kwargs && PyArg_ParseTupleAndKeywords(args,
-                                                   kwargs,
-                                                   "O|III:moose_ObjId_init_from_id",
-                                                   kwlist,
-                                                   &obj,
-                                                   &data,
-                                                   &field,
-                                                   &numFieldBits)) ||
-            (!kwargs && PyArg_ParseTuple(args,
-                                         "O|III:moose_ObjId_init_from_id",
-                                         &obj,
-                                         &data,
-                                         &field,
-                                         &numFieldBits))){
-            PyErr_Clear();
+        if (PyArg_ParseTupleAndKeywords(args, kwargs, "O|III:moose_ObjId_init",
+                                        kwlist,
+                                        &obj, &data, &field, &numFieldBits)){
             // If first argument is an Id object, construct an ObjId out of it
             if (Id_Check(obj)){
                 if (!Id::isValid(((_Id*)obj)->id_)){
-                    RAISE_INVALID_ID(-1, "moose_ObjId_init_from_id");
+                    RAISE_INVALID_ID(-1);
                 }                    
                 instance->oid_ = ObjId(((_Id*)obj)->id_,
                                        DataId(data, field, numFieldBits));
                 return 0;
             } else if (PyObject_IsInstance(obj, (PyObject*)&ObjIdType)){
                 if (!Id::isValid(((_ObjId*)obj)->oid_.id)){
-                    RAISE_INVALID_ID(-1, "moose_ObjId_init_from_id");
+                    RAISE_INVALID_ID(-1);
                 }                    
                 instance->oid_ = ((_ObjId*)obj)->oid_;
                 return 0;
@@ -1976,17 +1956,16 @@ static struct module_state _state;
             }
         } else if (PyArg_ParseTupleAndKeywords(args,
                                                 kwargs,
-                                                "s|Os:moose_ObjId_init_from_path",
+                                                "s|Os:moose_ObjId_init",
                                                 kwlist,
                                                 &path,
                                                 &dims,
                                                 &type)){\
             parse_success = true;
         }
-        PyErr_Clear();
         if (!parse_success){
             return -2;
-        }    
+        }
         // First see if there is an existing object with at path
         instance->oid_ = ObjId(path);
         if (!(ObjId::bad() == instance->oid_)){
@@ -2000,13 +1979,13 @@ static struct module_state _state;
         }
         if (basetype_str.length() == 0){
             PyErr_SetString(PyExc_TypeError, "Unknown class. Need a valid MOOSE class or subclass thereof.");
-            // Py_XDECREF(self);
+            Py_XDECREF(self);
             return -1;
         }
         
         Id new_id = create_Id_from_path(path, pysequence_to_dimvec(dims), basetype_str);
         if (new_id == Id() && PyErr_Occurred()){
-          // Py_XDECREF(self);
+            Py_XDECREF(self);
             return -1;
         }
         instance->oid_ = ObjId(new_id);
@@ -2035,16 +2014,18 @@ static struct module_state _state;
     {
         if (self && !PyObject_IsInstance(self, (PyObject*)Py_TYPE(self))){
             ostringstream error;
-            error << "Expected an melement or subclass. Found "
+            error << "Expected an element or subclass. Found "
                   << Py_TYPE(self)->tp_name;
             PyErr_SetString(PyExc_TypeError, error.str().c_str());
             return -1;
         }
         int ret = moose_ObjId_init_from_path(self, args, kwargs);
+        
         if (ret >= -1){
             return ret;
         }
         // parsing arguments as (path, dims, classname) failed. See if it is existing Id or ObjId.
+        PyErr_Clear();
         if (moose_ObjId_init_from_id(self, args, kwargs) == 0){
             return 0;
         }
@@ -2062,7 +2043,7 @@ static struct module_state _state;
     static long moose_ObjId_hash(_ObjId * self)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(-1, "moose_ObjId_hash");
+            RAISE_INVALID_ID(-1);
         }
         PyObject * path = Py_BuildValue("s", self->oid_.path().c_str());        
         long ret = PyObject_Hash(path);
@@ -2073,7 +2054,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_repr(_ObjId * self)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_repr");
+            RAISE_INVALID_ID(NULL);
         }
         ostringstream repr;
         repr << "<moose." << Field<string>::get(self->oid_, "class") << ": "
@@ -2091,7 +2072,7 @@ static struct module_state _state;
     static PyObject* moose_ObjId_getId(_ObjId * self)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getId");
+            RAISE_INVALID_ID(NULL);
         }
         extern PyTypeObject IdType;        
         _Id * ret = PyObject_New(_Id, &IdType);
@@ -2105,7 +2086,7 @@ static struct module_state _state;
                  "Get the string representation of the type of this field.\n"
                  "\n"
                  "Parameters\n"
-                 "----------\n"
+                 "----------"
                  "fieldName : string\n"
                  "\tName of the field to be queried.\n"
                  "finfoType : string\n"
@@ -2116,7 +2097,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_getFieldType(_ObjId * self, PyObject * args)
     {
         if (Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getFieldType");
+            RAISE_INVALID_ID(NULL);
         }
         char * fieldName = NULL;
         char * finfoType = NULL;
@@ -2152,13 +2133,13 @@ static struct module_state _state;
                  "Get the value of the field.\n"
                  "\n"
                  "Parameters\n"
-                 "----------\n"
+                 "----------"
                  "fieldName : string\n"
                  "\tName of the field.");
     static PyObject * moose_ObjId_getField(_ObjId * self, PyObject * args)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getField");
+            RAISE_INVALID_ID(NULL);
         }
         PyObject * attr;        
         if (!PyArg_ParseTuple(args, "O:moose_ObjId_getField", &attr)){
@@ -2180,7 +2161,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_getattro(_ObjId * self, PyObject * attr)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getattro");
+            RAISE_INVALID_ID(NULL);
         }
         extern PyTypeObject IdType;
         extern PyTypeObject ObjIdType;
@@ -2408,7 +2389,7 @@ static struct module_state _state;
                  "Set the value of specified field.\n"
                  "\n"
                  "Parameters\n"
-                 "----------\n"
+                 "----------"
                  "fieldName : string\n"
                  "\tField to be assigned value to.\n"
                  "value : python datatype compatible with the type of the field\n"
@@ -2433,7 +2414,7 @@ static struct module_state _state;
     static int  moose_ObjId_setattro(_ObjId * self, PyObject * attr, PyObject * value)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(-1, "moose_ObjId_setattro");
+            RAISE_INVALID_ID(-1);
         }
         const char * field;
         if (PyString_Check(attr)){
@@ -2720,20 +2701,11 @@ static struct module_state _state;
         char key_type_code = shortType(type_vec[0]);
         char value_type_code = shortType(type_vec[1]);
         void * value_ptr = NULL;
-        switch (value_type_code){
-            case 'x': {
-                value_ptr = PyObject_New(_Id, &IdType);
-                break;
-            }
-            case 'y': {
-                value_ptr = PyObject_New(_ObjId, &ObjIdType);
-                break;
-            }
-            case 'C': case 'v': case 'w': case 'L': case 'U': case 'K': case 'F': case 'D': case 'S':  case 'X': case 'Y': {
-                value_ptr = PyList_New(0);
-                break;
-            }
-        } //! switch( value_type_code )
+        if (value_type_code == 'x'){
+            value_ptr = PyObject_New(_Id, &IdType);
+        } else if (value_type_code == 'y'){
+            value_ptr = PyObject_New(_ObjId, &ObjIdType);
+        }
         switch(key_type_code){
             case 'b': {
                 ret = lookup_value <bool> (target, string(fieldName), value_type_code, key_type_code, key, value_ptr);
@@ -2823,20 +2795,17 @@ static struct module_state _state;
                 ostringstream error;
                 error << "Unhandled key type `" << type_vec[0] << "` for " << Field<string>::get(target, "class") << "." << fieldName;
                 PyErr_SetString(PyExc_TypeError, error.str().c_str());
-        }
-        if (ret == NULL && value_ptr != NULL){
-            Py_XDECREF(value_ptr);
-        }
+        }                
         return ret;
     }
 
     PyDoc_STRVAR(moose_ObjId_getLookupField_documentation,
                  "getLookupField(fieldName, key)\n"
                  "\n"
-                 "Lookup entry for `key` in `fieldName`\n"
+                 "Lookup entry for `key` in `fieldName` \n"
                  "\n"
                  "Parameters\n"
-                 "----------\n"
+                 "----------"
                  "fieldName : string\n"
                  "\tName of the lookupfield.\n"
                  "key : appropriate type for key of the lookupfield (as in the dict"
@@ -2846,7 +2815,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_getLookupField(_ObjId * self, PyObject * args)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getLookupField");
+            RAISE_INVALID_ID(NULL);
         }
         char * fieldName = NULL;
         PyObject * key = NULL;
@@ -2985,7 +2954,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_setDestField(_ObjId * self, PyObject * args)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_setDestField");
+            RAISE_INVALID_ID(NULL);
         }
         return _setDestField(((_ObjId*)self)->oid_, args);        
     }
@@ -3160,15 +3129,8 @@ static struct module_state _state;
         if (ret){
             Py_RETURN_TRUE;
         } else {
-            ostringstream err;
-            err << fieldName << " takes arguments (";
-            for (unsigned int ii = 0; ii < argType.size(); ++ii){
-                error << argType[ii] << ",";
-            }
-            error << ")";                    
-            PyErr_SetString(PyExc_TypeError, err.str().c_str());
-            return NULL;
-        }
+            Py_RETURN_FALSE;
+        }        
     } // moose_ObjId_setDestField
 
     PyDoc_STRVAR(moose_ObjId_getFieldNames_documenation,
@@ -3197,7 +3159,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_getFieldNames(_ObjId * self, PyObject *args)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getFieldNames");
+            RAISE_INVALID_ID(NULL);
         }
         char * ftype = NULL;
         if (!PyArg_ParseTuple(args, "|s:moose_ObjId_getFieldNames", &ftype)){
@@ -3253,7 +3215,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_getNeighbors(_ObjId * self, PyObject * args)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getNeighbors");
+            RAISE_INVALID_ID(NULL);
         }
         char * field = NULL;
         if (!PyArg_ParseTuple(args, "s:moose_ObjId_getNeighbors", &field)){
@@ -3308,7 +3270,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_connect(_ObjId * self, PyObject * args)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_connect");
+            RAISE_INVALID_ID(NULL);
         }
         extern PyTypeObject ObjIdType;        
         PyObject * destPtr = NULL;
@@ -3352,7 +3314,7 @@ static struct module_state _state;
   static PyObject* moose_ObjId_richcompare(_ObjId * self, PyObject * other, int op)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_richcompare");
+            RAISE_INVALID_ID(NULL);
         }
         extern PyTypeObject ObjIdType;
         if ((self != NULL && other == NULL) || (self == NULL && other != NULL)){
@@ -3373,7 +3335,7 @@ static struct module_state _state;
           return NULL;
         }
         if (!Id::isValid(((_ObjId*)other)->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_richcompare");
+            RAISE_INVALID_ID(NULL);
         }
 
         string l_path = self->oid_.path();
@@ -3404,7 +3366,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_getDataIndex(_ObjId * self)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getDataIndex");
+            RAISE_INVALID_ID(NULL);
         }        
         PyObject * ret = Py_BuildValue("I", self->oid_.dataId.value());
         return ret;
@@ -3416,7 +3378,7 @@ static struct module_state _state;
     static PyObject * moose_ObjId_getFieldIndex(_ObjId * self)
     {
         if (!Id::isValid(self->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_getFieldIndex");
+            RAISE_INVALID_ID(NULL);
         }
         PyObject * ret = Py_BuildValue("I", self->oid_.dataId.value());
         return ret;
@@ -3461,7 +3423,7 @@ static struct module_state _state;
     ///////////////////////////////////////////////
     PyTypeObject ObjIdType = { 
       PyVarObject_HEAD_INIT(NULL, 0)            /* tp_head */
-        "moose.melement",                      /* tp_name */
+        "moose.element",                      /* tp_name */
         sizeof(_ObjId),                     /* tp_basicsize */
         0,                                  /* tp_itemsize */
         0,                                  /* tp_dealloc */
@@ -3596,7 +3558,7 @@ static struct module_state _state;
             return NULL;
         }
         if (!Id::isValid(_src) || !Id::isValid(_dest)){
-            RAISE_INVALID_ID(NULL, "moose_copy");
+            RAISE_INVALID_ID(NULL);
         }
         string name;
         if (newName == NULL){
@@ -3634,10 +3596,10 @@ static struct module_state _state;
                  "\nPython objects referring to this ematrix but does invalidate them. Any"
                  "\nattempt to access them will raise a ValueError."
                  "\n"
-                 "\nParameters\n"
+                 "\nParameters"
                  "\n----------"
                  "\nid : ematrix"
-                 "\n\tematrix of the object to be deleted."
+                 "\nematrix of the object to be deleted."
                  "\n");
     static PyObject * moose_delete(PyObject * dummy, PyObject * args)
     {
@@ -3654,7 +3616,7 @@ static struct module_state _state;
             return NULL;
         }
         if (!Id::isValid(((_Id*)obj)->id_)){
-            RAISE_INVALID_ID(NULL, "moose_delete");
+            RAISE_INVALID_ID(NULL);
         }
         SHELLPTR->doDelete(((_Id*)obj)->id_);
         Py_RETURN_NONE;
@@ -3697,7 +3659,7 @@ static struct module_state _state;
                  "called, you can call moose.start(t) as many time as you like. This\n"
                  "will continue the simulation from the last state for `t` time.\n"
                  "\n"
-                 "\nParameters\n"
+                 "Parameters\n"
                  "----------\n"
                  "t : float\n"
                  "\tduration of simulation.\n"
@@ -3780,7 +3742,7 @@ static struct module_state _state;
                  "\n"
                  "Load model from a file to a specified path.\n"
                  "\n"
-                 "\nParameters\n"
+                 "Parameters\n"
                  "----------\n"
                  "filename : str\n"
                  "\tmodel description file.\n"
@@ -3815,50 +3777,6 @@ static struct module_state _state;
         return ret;
     }
 
-    PyDoc_STRVAR(moose_saveModel_documentation,
-                 "saveModel(source, fileame)\n"
-                 "\n"
-                 "Save model rooted at `source` to file `filename`.\n"
-                 "\n"
-                 "\nParameters\n"
-                 "----------\n"
-                 "source: ematrix or element or str\n"
-                 "\troot of the model tree\n"
-                 "\n"
-                 "filename: str\n"
-                 "\tdestination file to save the model in.\n"
-                 "\n"
-                 "Returns\n"
-                 "-------\n"
-                 "None\n"
-                 "\n");
-
-    static PyObject * moose_saveModel(PyObject * dummy, PyObject * args)
-    {
-        char * filename = NULL;
-        PyObject * source = NULL;
-        Id model;
-        if (!PyArg_ParseTuple(args, "Os: moose_saveModel", &source, &filename)){
-            return NULL;
-        }
-        if (PyString_Check(source)){
-            char * srcPath = PyString_AsString(source);
-            if (!srcPath){
-                return NULL;
-            }
-            model = Id(string(srcPath));
-        } else if (Id_Check(source)){
-            model = ((_Id*)source)->id_;
-        } else if (ObjId_Check(source)){
-            model = ((_ObjId*)source)->oid_.id;
-        } else {
-            PyErr_SetString(PyExc_TypeError, "moose_saveModel: need an ematrix, element or string for first argument.");
-            return NULL;
-        }
-        SHELLPTR->doSaveModel(model, filename);
-        Py_RETURN_NONE;
-    }
-    
     static PyObject * moose_setCwe(PyObject * dummy, PyObject * args)
     {
         PyObject * element = NULL;
@@ -3880,7 +3798,7 @@ static struct module_state _state;
             return NULL;
         }
         if (!Id::isValid(id)){
-            RAISE_INVALID_ID(NULL, "moose_setCwe");
+            RAISE_INVALID_ID(NULL);
         }
         SHELLPTR->setCwe(id);
         Py_RETURN_NONE;
@@ -3950,7 +3868,7 @@ static struct module_state _state;
         _ObjId * dest = reinterpret_cast<_ObjId*>(destPtr);
         _ObjId * src = reinterpret_cast<_ObjId*>(srcPtr);
         if (!Id::isValid(dest->oid_.id) || !Id::isValid(src->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_connect");
+            RAISE_INVALID_ID(NULL);
         }
         MsgId mid = SHELLPTR->doAddMsg(msgType, src->oid_, string(srcField), dest->oid_, string(destField));
         if (mid == Msg::bad){
@@ -4052,7 +3970,7 @@ static struct module_state _state;
         string fname(field), ftype(type);
         ObjId oid = ((_ObjId*)pyobj)->oid_;
         if (!Id::isValid(oid.id)){
-            RAISE_INVALID_ID(NULL, "moose_getField");
+            RAISE_INVALID_ID(NULL);
         }
         // Let us do this version using brute force. Might be simpler than getattro.
         if (ftype == "char"){
@@ -4177,7 +4095,7 @@ static struct module_state _state;
         }
         Id id = ((_Id*)obj)->id_;
         if (!Id::isValid(id)){
-            RAISE_INVALID_ID(NULL, "moose_syncDataHandler");
+                RAISE_INVALID_ID(NULL);
         }
         SHELLPTR->doSyncDataHandler(id);
         Py_RETURN_NONE;
@@ -4188,12 +4106,12 @@ static struct module_state _state;
                  "\n"
                  "Reseed MOOSE random number generator.\n"
                  "\n"
-                 "\nParameters\n"
+                 "Parameters\n"
                  "----------\n"
                  "seed: int\n"
-                 "\tOptional value to use for seeding. If 0, a random seed is"
-                 "\n\tautomatically created using the current system time and other"
-                 "\n\tinformation. If not specified, it defaults to 0."
+                 "Optional value to use for seeding. If 0, a random seed is"
+                 "\nautomatically created using the current system time and other"
+                 "\ninformation. If not specified, it defaults to 0."
                  "\n");
     
     static PyObject * moose_seed(PyObject * dummy, PyObject * args)
@@ -4211,27 +4129,22 @@ static struct module_state _state;
                  "\n"
                  "Find an object by wildcard.\n"
                  "\n"
-                 "\nParameters\n"
+                 "Parameters\n"
                  "----------\n"
                  "expression: str\n"
-                 "\tMOOSE allows wildcard expressions of the form\n"
-                 "\t{PATH}/{WILDCARD}[{CONDITION}]\n"
-                 "\twhere {PATH} is valid path in the element tree.\n"
-                 "\t{WILDCARD} can be `#` or `##`.\n"
-                 "\t`#` causes the search to be restricted to the children of the\n"
-                 "\telement specified by {PATH}.\n"
-                 "\t`##` makes the search to recursively go through all the descendants\n"
-                 "\tof the {PATH} element.\n"
-                 "\t{CONDITION} can be\n"
-                 "\tTYPE={CLASSNAME} : an element satisfies this condition if it is of\n"
-                 "\tclass {CLASSNAME}.\n"
-                 "\tISA={CLASSNAME} : alias for TYPE={CLASSNAME}\n"
-                 "\tCLASS={CLASSNAME} : alias for TYPE={CLASSNAME}\n"
-                 "\tFIELD({FIELDNAME}){OPERATOR}{VALUE} : compare field {FIELDNAME} with\n"
-                 "\t{VALUE} by {OPERATOR} where {OPERATOR} is a comparison operator (=,\n"
-                 "\t!=, >, <, >=, <=).\n"
-                 "\tFor example, /mymodel/##[FIELD(Vm)>=-65] will return a list of all\n"
-                 "\tthe objects under /mymodel whose Vm field is >= -65.\n"
+                 "MOOSE allows wildcard expressions of the form {PATH}/{WILDCARD}[{CONDITION}]\n"
+                 "where {PATH} is valid path in the element tree. {WILDCARD} can be `#` or\n"
+                 "`##`. `#` causes the search to be restricted to the children of the element\n"
+                 "specified by {PATH}. `##` makes the search to recursively go through all the\n"
+                 "descendants of the {PATH} element. {CONDITION} can be \n"
+                 "TYPE={CLASSNAME} : an element satisfies this condition if it is of class\n"
+                 "{CLASSNAME}.\n"
+                 "ISA={CLASSNAME} : alias for TYPE={CLASSNAME}\n"
+                 "CLASS={CLASSNAME} : alias for TYPE={CLASSNAME}\n"
+                 "FIELD({FIELDNAME}){OPERATOR}{VALUE} : compare field {FIELDNAME} with {VALUE}\n"
+                 "by {OPERATOR} where {OPERATOR} is a comparison operator (=, !=, >, <, >=,\n"
+                 "<=). For example, /mymodel/##[FIELD(Vm)>=-65] will return a list of all the\n"
+                 "objects under /mymodel whose Vm field is >= -65.\n"
                  "\n");
     static PyObject * moose_wildcardFind(PyObject * dummy, PyObject * args)
     {
@@ -4410,7 +4323,7 @@ static struct module_state _state;
         }
         _ObjId * obj = (_ObjId*)self;
         if (!Id::isValid(obj->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_get_destField_attr");
+                RAISE_INVALID_ID(NULL);
         }
         char * name = NULL;
         if (!PyArg_ParseTuple((PyObject *)closure,
@@ -4499,7 +4412,7 @@ static struct module_state _state;
         }
         _ObjId * obj = (_ObjId*)self;
         if (!Id::isValid(obj->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_get_lookupField_attr");
+            RAISE_INVALID_ID(NULL);
         }
         char * name = NULL;
         if (!PyArg_ParseTuple((PyObject *)closure,
@@ -4639,7 +4552,7 @@ static struct module_state _state;
         }
         _ObjId * obj = (_ObjId*)self;
         if (!Id::isValid(obj->oid_.id)){
-            RAISE_INVALID_ID(NULL, "moose_ObjId_get_elementField_attr");
+            RAISE_INVALID_ID(NULL);
         }
         char * name = NULL;
         if (!PyArg_ParseTuple((PyObject *)closure,
@@ -4702,7 +4615,7 @@ static struct module_state _state;
     PyObject * moose_ElementField_getNum(_Field * self, void * closure)
     {
         if (!Id::isValid(self->owner.id)){
-            RAISE_INVALID_ID(NULL, "moose_ElementField_getNum");
+            RAISE_INVALID_ID(NULL);
         }
         unsigned int num = Field<unsigned int>::get(self->owner, "num_" + string(self->name));
         return Py_BuildValue("I", num);
@@ -4711,7 +4624,7 @@ static struct module_state _state;
     int moose_ElementField_setNum(_Field * self, PyObject * args, void * closure)
     {
         if (!Id::isValid(self->owner.id)){
-            RAISE_INVALID_ID(-1, "moose_ElementField_setNum");
+            RAISE_INVALID_ID(-1);
         }
         unsigned int num;
         if (!PyInt_Check(args)){
@@ -4729,7 +4642,7 @@ static struct module_state _state;
     PyObject * moose_ElementField_getItem(_Field * self, Py_ssize_t index)
     {
         if (!Id::isValid(self->owner.id)){
-            RAISE_INVALID_ID(NULL, "moose_ElementField_getItem");
+            RAISE_INVALID_ID(NULL);
         }
         unsigned int len = Field<unsigned int>::get(self->owner, "num_" + string(self->name));
         if (index >= len){
@@ -4767,7 +4680,6 @@ static struct module_state _state;
         {"exists", (PyCFunction)moose_exists, METH_VARARGS, "True if there is an object with specified path."},
         {"writeSBML", (PyCFunction)moose_writeSBML, METH_VARARGS, "Export biochemical model to an SBML file."},    
         {"loadModel", (PyCFunction)moose_loadModel, METH_VARARGS, moose_loadModel_documentation},
-        {"saveModel", (PyCFunction)moose_saveModel, METH_VARARGS, moose_saveModel_documentation},
         {"connect", (PyCFunction)moose_connect, METH_VARARGS, moose_connect_documentation},        
         {"getCwe", (PyCFunction)moose_getCwe, METH_VARARGS, "Get the current working element. 'pwe' is an alias of this function."},
         // {"pwe", (PyCFunction)moose_getCwe, METH_VARARGS, "Get the current working element. 'getCwe' is an alias of this function."},

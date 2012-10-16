@@ -16,7 +16,6 @@ extern void testGsolver( string modelName, string plotName,
 	double plotDt, double simtime, double volume );
 extern ModelType findModelType( string filename, ifstream& fin, 
 	string& line );
-extern void writeKkit( Id model, const string& fname );
 
 void rtFindModelType()
 {
@@ -475,8 +474,6 @@ void rtRunKkit()
 	assert( doubleEq( actualVol, vol ) );
 
 	shell->doReinit();
-	size = Field< unsigned int >::get( plotId, "size" );
-	assert( size == 1 ); // Reinit should generate one data point.
 	shell->doStart( 5000.0 );
 	size = Field< unsigned int >::get( plotId, "size" );
 	assert( size == 501 ); // Note that dt was 10.
@@ -935,31 +932,4 @@ void rtTestChem()
 
 	testGsolver( "tabsumtot", "A.Co", 0.1, 50, 1e-18 );
 	testGsolver( "stargazin_psd6", "PSD/R_S2.Co", 1, 50, 1e-20 );
-}
-
-void rtTestWriteKkit()
-{
-	Shell* shell = reinterpret_cast< Shell* >( Id().eref().data() );
-	vector< unsigned int > dims( 1, 1 );
-	Shell::cleanSimulation();
-
-	Id model = shell->doLoadModel( "Kholodenko.g", "/rkktest", "Neutral" );
-	assert( model != Id() );
-
-	shell->doSaveModel( model, "writeK.g" );
-	shell->doDelete( model );
-
-	model = shell->doLoadModel( "tabsumtot.g", "/tabtest", "Neutral" );
-	assert( model != Id() );
-
-	shell->doSaveModel( model, "writeTabTest.g" );
-	shell->doDelete( model );
-
-	model = shell->doLoadModel( "Osc_cspace_ref_model.g", "/model", "gsl" );
-	assert( model != Id() );
-
-	shell->doSaveModel( model, "oscTest.g" );
-	shell->doDelete( model );
-
-	cout << "." << flush;
 }

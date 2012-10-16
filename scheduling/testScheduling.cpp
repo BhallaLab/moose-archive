@@ -177,15 +177,10 @@ void setupTicks()
 	static const double EPSILON = 1.0e-9;
 	const double runtime = 20.0;
 	// const Cinfo* tc = Tick::initCinfo();
-	vector< DimInfo > dims;
-	/*
 	Id clock = Id::nextId();
+	vector< DimInfo > dims;
 	Element* clocke = new Element( clock, Clock::initCinfo(), "tclock",
 		dims, 1, true );
-		*/
-	Id clock(1);
-	Element* clocke = clock.element();
-
 	assert( clocke );
 	// bool ret = Clock::initCinfo()->create( clock, "tclock", 1 );
 	// assert( ret );
@@ -195,20 +190,16 @@ void setupTicks()
 	Element* ticke = tickId();
 	assert( ticke->getName() == "tick" );
 
-
-	/*
 	unsigned int size = 10;
+
 	for ( unsigned int i = 0; i < size; ++i ) {
 		Eref er( ticke, DataId( i ) );
 		reinterpret_cast< Tick* >( er.data() )->setElement( ticke );
 	}
-	*/
 
 	// cout << Shell::myNode() << ": numTicks: " << ticke->dataHandler()->totalEntries() << ", " << size << endl;
-	assert( ticke->dataHandler()->localEntries() == Tick::maxTicks );
+	assert( ticke->dataHandler()->localEntries() == size );
 
-	// Here I'm setting Tick fields, but the call is routed through the
-	// Clock
 	ObjId er0( tickId, DataId( 2 ) );
 	bool ret = Field< double >::set( er0, "dt", 5.0);
 	assert( ret );
@@ -230,36 +221,7 @@ void setupTicks()
 	ret = Field< double >::set( er5, "dt", 5.0);
 	assert( ret );
 
-
-
-	Id tsid = Id::nextId();
-	Element* tse = new Element( tsid, testSchedCinfo, "tse", dims, 1 );
-
-	Eref ts( tse, 0 );
-	
-	FuncId f( processFinfo.getFid() );
-	const Finfo* proc0 = ticke->cinfo()->findFinfo( "process0" );
-	assert( proc0 );
-	const SrcFinfo* sproc0 = dynamic_cast< const SrcFinfo* >( proc0 );
-	assert( sproc0 );
-	unsigned int b0 = sproc0->getBindIndex();
-	SingleMsg *m0 = new SingleMsg( Msg::nextMsgId(), er0.eref(), ts ); 
-	er0.element()->addMsgAndFunc( m0->mid(), f, er0.dataId.value()*2 + b0);
-	SingleMsg *m1 = new SingleMsg( Msg::nextMsgId(), er1.eref(), ts ); 
-	er1.element()->addMsgAndFunc( m1->mid(), f, er1.dataId.value()*2 + b0);
-	SingleMsg *m2 = new SingleMsg( Msg::nextMsgId(), er2.eref(), ts );
-	er2.element()->addMsgAndFunc( m2->mid(), f, er2.dataId.value()*2 + b0);
-	SingleMsg *m3 = new SingleMsg( Msg::nextMsgId(), er3.eref(), ts ); 
-	er3.element()->addMsgAndFunc( m3->mid(), f, er3.dataId.value()*2 + b0);
-	SingleMsg *m4 = new SingleMsg( Msg::nextMsgId(), er4.eref(), ts ); 
-	er4.element()->addMsgAndFunc( m4->mid(), f, er4.dataId.value()*2 + b0);
-	SingleMsg *m5 = new SingleMsg( Msg::nextMsgId(), er5.eref(), ts ); 
-	er5.element()->addMsgAndFunc( m5->mid(), f, er5.dataId.value()*2 + b0);
-
-
-
 	Clock* cdata = reinterpret_cast< Clock* >( clocker.data() );
-	cdata->rebuild();
 	assert( cdata->tickPtr_.size() == 4 );
 	assert( fabs( cdata->tickPtr_[0].mgr()->dt_ - 1.0 ) < EPSILON );
 	assert( fabs( cdata->tickPtr_[1].mgr()->dt_ - 2.0 ) < EPSILON );
@@ -281,10 +243,33 @@ void setupTicks()
 	assert( cdata->tickPtr_[3].mgr()->ticks_[0] == reinterpret_cast< const Tick* >( er0.data() ) );
 	assert( cdata->tickPtr_[3].mgr()->ticks_[1] == reinterpret_cast< const Tick* >( er5.data() ) );
 
+	Id tsid = Id::nextId();
+	Element* tse = new Element( tsid, testSchedCinfo, "tse", dims, 1 );
 
-	Qinfo::emptyAllQs();
+	Eref ts( tse, 0 );
+	
+	FuncId f( processFinfo.getFid() );
+	const Finfo* proc0 = ticke->cinfo()->findFinfo( "process0" );
+	assert( proc0 );
+	const SrcFinfo* sproc0 = dynamic_cast< const SrcFinfo* >( proc0 );
+	assert( sproc0 );
+	unsigned int b0 = sproc0->getBindIndex();
+	SingleMsg *m0 = new SingleMsg( Msg::nextMsgId(), er0.eref(), ts ); 
+	er0.element()->addMsgAndFunc( m0->mid(), f, 0 + b0 );
+	SingleMsg *m1 = new SingleMsg( Msg::nextMsgId(), er1.eref(), ts ); 
+	er1.element()->addMsgAndFunc( m1->mid(), f, 2 + b0 );
+	SingleMsg *m2 = new SingleMsg( Msg::nextMsgId(), er2.eref(), ts );
+	er2.element()->addMsgAndFunc( m2->mid(), f, 4 + b0 );
+	SingleMsg *m3 = new SingleMsg( Msg::nextMsgId(), er3.eref(), ts ); 
+	er3.element()->addMsgAndFunc( m3->mid(), f, 6 + b0 );
+	SingleMsg *m4 = new SingleMsg( Msg::nextMsgId(), er4.eref(), ts ); 
+	er4.element()->addMsgAndFunc( m4->mid(), f, 8 + b0 );
+	SingleMsg *m5 = new SingleMsg( Msg::nextMsgId(), er5.eref(), ts ); 
+	er5.element()->addMsgAndFunc( m5->mid(), f, 14 + b0 );
+
+	cdata->rebuild();
+
 	ProcInfo p;
-	p.threadIndexInGroup = 1;
 	cdata->handleReinit();
 	assert( cdata->currTickPtr_ == 0 );
 	assert( Clock::procState_ == Clock::TurnOnReinit ); 
@@ -332,23 +317,12 @@ void setupTicks()
 
 	assert( doubleEq( cdata->getCurrentTime(), runtime ) );
 	// Get rid of pending events in the queues.
-	Qinfo::emptyAllQs();
-	/*
 	Qinfo::clearQ( p.threadIndexInGroup );
 	Qinfo::clearQ( p.threadIndexInGroup );
-	*/
 
-	/*
 	tickId.destroy();
 	clock.destroy();
-	*/
 	tsid.destroy();
-	for ( unsigned int i = 0; i < Tick::maxTicks; ++i ) {
-		cdata->ticks_[i].setDt( 0.0 );
-	}
-	cdata->rebuild();
-	assert( cdata->tickMgr_.size() == 0 );
-	assert( cdata->tickPtr_.size() == 0 );
 	cout << "." << flush;
 }
 
@@ -990,53 +964,6 @@ void speedTestMultiNodeIntFireNetwork( unsigned int size, unsigned int runsteps 
 	shell->doDelete( i2 );
 	shell->doQuit();
 }
-
-/// Tests how the scheduling ticks have been configured.
-void testTickConfig()
-{
-	Id tick( 2 );
-	assert( tick.element() );
-	assert( tick.element()->getName() == "tick" );
-	DataHandler* dh = tick.element()->dataHandler();
-	assert( dh );
-	FieldDataHandlerBase* fdb = dynamic_cast< FieldDataHandlerBase *>(dh);
-	assert( fdb );
-
-	assert ( fdb->localEntries() == Tick::maxTicks );
-	assert ( dh->localEntries() == Tick::maxTicks );
-
-	assert( dh->numDimensions() == 1 );
-	assert( dh->pathDepth() == 2 );
-	assert( dh->sizeOfDim( 0 ) == 16 );
-	assert( dh->sizeOfDim( 1 ) == 0 );
-
-	assert( dh->dims().size() == 1 );
-	assert( dh->dims()[0].size == 16 );
-	assert( dh->dims()[0].depth == 2 );
-	assert( dh->dims()[0].isRagged );
-	assert( dh->getFieldArraySize( 0 ) == Tick::maxTicks );
-	assert( dh->fieldMask() == 0x0f);
-	assert( fdb->numFieldBits() == 4 );
-
-	unsigned int i = dh->linearIndex( 123 );
-	// The zeroDimHandler clears out any attempt to get indices other than
-	// zero, so the parent index terms in the linearIndex vanish.
-	unsigned int j = 123 % 16; 
-	assert( i == j );
-
-	for ( unsigned int i = 0; i < Tick::maxTicks; ++i ) {
-		vector< vector< unsigned int > > pathIndices = 
-				dh->pathIndices( i );
-		assert( pathIndices.size() == 3 );
-		assert( pathIndices[0].size() == 0 );
-		assert( pathIndices[1].size() == 0 );
-		assert( pathIndices[2].size() == 1 );
-		assert( pathIndices[2][0] == i );
-	}
-
-	cout << "." << flush;
-}
-
 void testScheduling()
 {
 	testTicks();
@@ -1045,7 +972,6 @@ void testScheduling()
 
 void testSchedulingProcess()
 {
-	testTickConfig(); // Checks that the system has correctly built ticks
 	testThreads();
 	testQueueAndStart();
 	testThreadIntFireNetwork();

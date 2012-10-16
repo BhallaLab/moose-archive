@@ -160,7 +160,6 @@ class Clock
 		 */
 		bool isRunning_;
 
-
 		/**
 		 * True while the system is doing a reinit
 		 */
@@ -169,11 +168,6 @@ class Clock
 		unsigned int numPendingThreads_;
 		unsigned int numThreads_;
 		int callback_;
-
-		/**
-		 * True if the ticks have been altered.
-		 */
-		bool isDirty_;
 
 		/**
 		 * TickPtr contains pointers to tickMgr and is used to sort.

@@ -22,7 +22,6 @@ OBJ = \
 	MMenz.o	\
 	Species.o	\
 	ReadKkit.o	\
-	WriteKkit.o	\
 	ReadCspace.o	\
 	MathFunc.o	\
 	SumFunc.o	\
@@ -52,7 +51,6 @@ Boundary.o:	Boundary.h
 ChemCompt.o:	ChemCompt.h
 Species.o:	Species.h
 ReadKkit.o:	lookupSizeFromMesh.h ReadKkit.h PoolBase.h Pool.h FuncPool.h ../shell/Shell.h 
-WriteKkit.o:	lookupSizeFromMesh.h PoolBase.h
 ReadCspace.o:	lookupSizeFromMesh.h ReadCspace.h ../shell/Shell.h
 MathFunc.o:	MathFunc.h
 SumFunc.o:	SumFunc.h
