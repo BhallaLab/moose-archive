@@ -128,7 +128,9 @@ extra_fields = ['this',
                 'valueFields',
                 'sourceFields',
                 'motorConst',
-                'destFields'
+                'destFields',
+                'dt',
+                'tick'
                 ]
 
 
@@ -167,7 +169,7 @@ class ObjectEditModel(QtCore.QAbstractTableModel):
         #harsha: For signalling models will be pulling out notes field from Annotator
         #        can updates if exist for other types also
         if ( isinstance(self.mooseObject, moose.PoolBase)
-           or isinstance(self.mooseObject,moose.ReacBase)
+           #or isinstance(self.mooseObject,moose.ReacBase)
            or isinstance(self.mooseObject,moose.EnzBase) ) :
             self.fields.append("Color")
             # self.fields.append("Notes")
@@ -258,9 +260,15 @@ class ObjectEditModel(QtCore.QAbstractTableModel):
                 ann = moose.Annotator(self.mooseObject.path+'/info')
                 if setter in ann.getFieldNames('destFinfo'):
                     flag |= QtCore.Qt.ItemIsEditable
-
-            if setter in self.mooseObject.getFieldNames('destFinfo'):
-                flag |= QtCore.Qt.ItemIsEditable
+            
+            if isinstance(self.mooseObject, moose.PoolBase) or isinstance(self.mooseObject,moose.Function): 
+                if field == 'volume' or field == 'expr':
+                    pass
+                elif setter in self.mooseObject.getFieldNames('destFinfo'):
+                    flag |= QtCore.Qt.ItemIsEditable
+            else:
+                if setter in self.mooseObject.getFieldNames('destFinfo'):
+                    flag |= QtCore.Qt.ItemIsEditable
 
             #if field == "Notes":
             #    flag |= QtCore.Qt.ItemIsEditable
@@ -291,16 +299,9 @@ class ObjectEditModel(QtCore.QAbstractTableModel):
                         ret = QtCore.QVariant(QtCore.QString(str(ret)))
                     elif(str(field) == "className"):
                         ret = self.mooseObject.getField(str(field))
-                        if ret == "ZombiePool":
-                            ret = QtCore.QVariant(QtCore.QString(str("Pool")))
-                        elif ret == "ZombieBufPool":
-                            ret = QtCore.QVariant(QtCore.QString(str("BufPool")))
-                        elif ret == "ZombieMMenz":
-                            ret = QtCore.QVariant(QtCore.QString(str("MMenz")))
-                        elif ret == "ZombieEnz":
-                            ret = QtCore.QVariant(QtCore.QString(str("Enz")))
-                        elif ret == "ZombieReac":
-                            ret = QtCore.QVariant(QtCore.QString(str("Reac")))
+                        if 'Zombie' in ret:
+                            ret = ret.split('Zombie')[1]
+                        ret = QtCore.QVariant(QtCore.QString(str(ret)))
                     elif(str(field) == "Notes"):
                         astr = self.mooseObject.path+'/info'
                         mastr = moose.Annotator(astr)

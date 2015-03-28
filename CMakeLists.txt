@@ -77,13 +77,14 @@ if(VERIFY)
 endif(VERIFY)
 
 # VERBOSITY OF OUTPUT
-set(VERBOSITY 0)
+option(VERBOSITY "SET MOOSE VERBOSITY LEVEL" 1)
 if(VERBOSITY)
-    message("++ Verbosity of output is ${VERBOSITY}")
+    message("++ Verbosity of output is ${VERBOSITY}. This is not implemented
+    yet!")
     add_definitions(-DVERBOSITY=${VERBOSITY})
 else()
-    #message("++ Moose will be quiet")
-    #add_definitions(-DQUIET_MODE)
+    message("++ Moose will be quiet")
+    add_definitions(-DQUIET_MODE)
 endif()
 
 # STATS INSIDE MOOSE
@@ -223,6 +224,7 @@ set(MOOSE_LIBRARIES
     randnum
     scheduling
     moose_mpi
+    biophysics 
     utility 
     muparser
     kinetics 
@@ -230,7 +232,6 @@ set(MOOSE_LIBRARIES
     mesh
     signeur
     tinyxml
-    biophysics 
     synapse
     diffusion 
     basecode

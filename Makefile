@@ -60,7 +60,7 @@
 
 # Default values for flags. The operator ?= assigns the given value only if the
 # variable is not already defined.
-USE_SBML?=0
+USE_SBML?=1
 USE_HDF5?=1
 USE_CUDA?=0
 USE_NEUROKIT?=0
@@ -358,7 +358,7 @@ OBJLIBS =	\
 
 
 ifeq ($(USE_NEUROKIT),1)
-	NEUROKIT_COMMAND = cd ./python/moogli; python setup.py build;  cd ../../; mv ./python/moogli/build/lib.linux-x86_64-2.7/moogli.so ./python/;
+	NEUROKIT_COMMAND = cd ./python/moogli; python setup.py build;  cd ../../; cp ./python/moogli/build/*/_moogli.so ./python/moogli/;
 # else
 # 	NEUROKIT_COMMAND = ""
 endif
