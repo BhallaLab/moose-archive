@@ -89,6 +89,7 @@ class NSDFWriter: public HDF5DataWriter
     NSDFWriter& operator=(const NSDFWriter&other);
             
     static const Cinfo *initCinfo();
+
   protected:    
     hid_t getEventDataset(string path);
     void sortSources();    
@@ -98,6 +99,7 @@ class NSDFWriter: public HDF5DataWriter
     // are still attached to requestOut message
     vector < vector < double > > events_; 
     vector < InputVariable > eventInputs_;
+    map <ObjId, hid_t> eventMap_;
 };
 #endif // _NSDFWRITER_H
 #endif // USE_HDF5

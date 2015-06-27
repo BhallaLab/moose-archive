@@ -185,6 +185,9 @@ void NSDFWriter::closeEventData()
 
 void NSDFWriter::openEventData(const Eref &eref)
 {
+    if (filehandle_ <= 0){
+        return;
+    }
     for (unsigned int ii = 0; ii < eventInputs_.size(); ++ii){
         stringstream path;
         path << eref.objId().path() << "/" << "eventInput[" << ii << "]";
@@ -194,9 +197,11 @@ void NSDFWriter::openEventData(const Eref &eref)
         const Finfo * dest = el->cinfo()->findFinfo("input");
         vector < Id > src;
         el->getNeighbors(src, dest);
-        assert(src.size() == 1);
-        for (unsigned int jj = 0; jj < src.size(); ++jj){
-            cout << "$$$$ " << src[jj].path() << endl;
+        if (src.size() > 1){
+            cerr << "NSDFWriter::openEventData - only one source can be connected to an eventInput" <<endl;
+        } else if (src.size() == 1){
+            // TODO get the SrcFinfo name for each event source
+            // and map srcpath.srcfield -> event dataset            
         }
     }
     // // events is similar to regular data in HDF5DataWriter
