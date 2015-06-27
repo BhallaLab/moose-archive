@@ -150,7 +150,7 @@ extern "C" {
     typedef struct {
         PyObject_HEAD
         char * name;
-        ObjId owner;
+        _ObjId * owner;
         ObjId myoid; // This is a placeholder for {Id, dataId} combo with fieldIndex=0, used only for fieldelements
     } _Field;
     //////////////////////////////////////////
