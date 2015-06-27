@@ -1,0 +1,104 @@
+/* NSDFWriter.h --- 
+ * 
+ * Filename: NSDFWriter.h
+ * Description: 
+ * Author: subha
+ * Maintainer: 
+ * Created: Thu Jun 18 23:06:59 2015 (-0400)
+ * Version: 
+ * Last-Updated: 
+ *           By: 
+ *     Update #: 0
+ * URL: 
+ * Keywords: 
+ * Compatibility: 
+ * 
+ */
+
+/* Commentary: 
+ * 
+ * 
+ * 
+ */
+
+/* Change log:
+ * 
+ * 
+ */
+
+/* This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 3, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.  If not, write to
+ * the Free Software Foundation, Inc., 51 Franklin Street, Fifth
+ * Floor, Boston, MA 02110-1301, USA.
+ */
+
+/* Code: */
+
+#ifdef USE_HDF5
+#ifndef _NSDFWRITER_H
+
+#include "HDF5DataWriter.h"
+#include "InputVariable.h"
+
+/**
+   NSDFWriter dumps data in NSDF file format.
+
+   - As of June 2015, MOOSE uses fixed time steps for updating field
+   values. So we support only Uniform data.
+
+   - This class has one SrcFinfo to request data. Multiple get{Field}
+     DestFinfos can be connected to this and the NSDFWriter class will put
+     together the ones with same name in one 2D dataset.
+
+   - One DestFinfo where SrcFinfos sending out event times can be
+     connected. These will go under Event data.
+     
+ */
+class NSDFWriter: public HDF5DataWriter
+{
+  public:
+    NSDFWriter();
+    virtual ~NSDFWriter();
+    virtual void flush();
+    // set the environment specs like title, author, tstart etc.
+    void setEnvironment(string key, string value);
+    // the model tree rooted here is to be copied to NSDF file
+    void setModelRoot(string root);
+    InputVariable *getEventInput(unsigned int index);
+    void setNumEventInputs(unsigned int num);
+    unsigned int getNumEventInputs() const;
+    void setInput(unsigned int index, double value);
+    void openUniformData(const Eref &eref);
+    void closeUniformData();
+    void openEventData(const Eref &eref);
+    void closeEventData();
+    herr_t writeEnv();    
+    // Sort the incoming data lines according to source object/field.
+    void process(const Eref &e, ProcPtr p);
+    void reinit(const Eref &e, ProcPtr p);
+    static const Cinfo *initCinfo();
+  protected:    
+    hid_t getEventDataset(string path);
+    void sortSources();    
+    map <string, string> env_; // environment attributes
+    vector < hid_t > eventDatasets_;
+    // event times data_ and datasets_ inherited from HDF5DataWriter
+    // are still attached to requestOut message
+    vector < vector < double > > events_; 
+    vector < InputVariable > eventInputs_;
+};
+#endif // _NSDFWRITER_H
+#endif // USE_HDF5
+
+
+/* NSDFWriter.h ends here */
