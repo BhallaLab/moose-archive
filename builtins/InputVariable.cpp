@@ -55,8 +55,7 @@ const Cinfo * InputVariable::initCinfo()
     static DestFinfo input("input",
                            "Handles input message, inserts into variable queue on owner.",
                            new EpFunc1< InputVariable, double > (&InputVariable::epSetValue));
-    static Finfo * inputVariableFinfos[] = {
-        &input};
+    static Finfo * inputVariableFinfos[] = {&input};
 
     static string doc[] = {
         "Name", "InputVariable",
@@ -68,8 +67,8 @@ const Cinfo * InputVariable::initCinfo()
     static Cinfo inputVariableCinfo(
         "InputVariable",
         Variable::initCinfo(),
-        NULL, //inputVariableFinfos,
-        0, //sizeof(inputVariableFinfos)/sizeof(Finfo*),
+        inputVariableFinfos,
+        sizeof(inputVariableFinfos)/sizeof(Finfo*),
         &dinfo,
         doc,
         sizeof(doc)/sizeof(string),
@@ -96,7 +95,9 @@ void InputVariable::setOwner( NSDFWriter * owner)
 
 void InputVariable::epSetValue( const Eref& eref, double value)
 {
-    owner_->setInput(eref.fieldIndex(), value);
+    if (owner_){
+        owner_->setInput(eref.fieldIndex(), value);
+    }
 }
 
 

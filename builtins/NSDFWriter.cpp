@@ -56,17 +56,9 @@
 
 #include "NSDFWriter.h"
 
-static SrcFinfo1< vector < double > * > *eventOut() {
-    static SrcFinfo1< vector < double > * > eventOut(
-        "eventOut",
-        "Sends request for a field on target object to track threshold crossing"
-        " events"
-                                                       );
-    return &eventOut;
-}
 
 const Cinfo * NSDFWriter::initCinfo()
-{
+{    
     static FieldElementFinfo< NSDFWriter, InputVariable > eventInputFinfo(
         "eventInput",
         "Sets up field elements for event inputs",
@@ -107,7 +99,7 @@ const Cinfo * NSDFWriter::initCinfo()
         "Description", "NSDF file writer for saving data."
     };
 
-    static Dinfo< HDF5DataWriter > dinfo;
+    static Dinfo< NSDFWriter > dinfo;
     static Cinfo cinfo(
         "NSDFWriter",
         HDF5DataWriter::initCinfo(),
@@ -123,6 +115,7 @@ static const Cinfo * nsdfWriterCinfo = NSDFWriter::initCinfo();
 
 NSDFWriter::NSDFWriter()
 {
+    cout << "####eventInputs size " << eventInputs_.size() <<endl;
     ;
 }
 
@@ -193,7 +186,9 @@ void NSDFWriter::closeEventData()
 void NSDFWriter::openEventData(const Eref &eref)
 {
     for (unsigned int ii = 0; ii < eventInputs_.size(); ++ii){
-        ObjId inputObj = ObjId(eref.objId().id, eref.objId().dataIndex, ii);
+        stringstream path;
+        path << eref.objId().path() << "/" << "eventInput[" << ii << "]";
+        ObjId inputObj = ObjId(path.str());
         cout << "%%% " << inputObj << endl;
         Element * el = inputObj.element();
         const Finfo * dest = el->cinfo()->findFinfo("input");
@@ -272,6 +267,18 @@ void NSDFWriter::process(const Eref& eref, ProcPtr proc)
     // TODO: send request for data
     // TODO do actual check on flush limits and write stuff
     
+}
+
+NSDFWriter& NSDFWriter::operator=( const NSDFWriter& other)
+{
+	eventInputs_ = other.eventInputs_;
+	for ( vector< InputVariable >::iterator 
+					i = eventInputs_.begin(); i != eventInputs_.end(); ++i )
+			i->setOwner( this );
+        for (unsigned int ii = 0; ii < getNumEventInputs(); ++ii){
+            events_[ii].clear();
+        }
+	return *this;
 }
 
 void NSDFWriter::setNumEventInputs(unsigned int num)

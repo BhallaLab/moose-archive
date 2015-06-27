@@ -59,7 +59,7 @@ class InputVariable: public Variable
 {
   public:
     InputVariable();
-    virtual ~InputVariable();
+    ~InputVariable();
     void epSetValue(const Eref &eref, double value);
     void setOwner(NSDFWriter * owner);
     static const Cinfo * initCinfo();

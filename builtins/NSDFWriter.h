@@ -68,7 +68,7 @@ class NSDFWriter: public HDF5DataWriter
 {
   public:
     NSDFWriter();
-    virtual ~NSDFWriter();
+    ~NSDFWriter();
     virtual void flush();
     // set the environment specs like title, author, tstart etc.
     void setEnvironment(string key, string value);
@@ -86,6 +86,8 @@ class NSDFWriter: public HDF5DataWriter
     // Sort the incoming data lines according to source object/field.
     void process(const Eref &e, ProcPtr p);
     void reinit(const Eref &e, ProcPtr p);
+    NSDFWriter& operator=(const NSDFWriter&other);
+            
     static const Cinfo *initCinfo();
   protected:    
     hid_t getEventDataset(string path);

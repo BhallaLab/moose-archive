@@ -107,12 +107,14 @@ extern "C" {
             PyErr_SetString(PyExc_TypeError, "Owner must be subtype of ObjId");
             return -1;
         }
-        self->owner = ((_ObjId*)owner);
-        if (!Id::isValid(self->owner->oid_.id)){
+        if (!Id::isValid(((_ObjId*)owner)->oid_.id)){
             Py_DECREF(self);
             RAISE_INVALID_ID(-1, "moose_Field_init");
         }
+        self->owner = ((_ObjId*)owner);
         Py_INCREF(self->owner);
+        ObjId tmp = ((_ObjId*)owner)->oid_;
+        cout << "$$$$ " << tmp.path() << endl;                  
         size_t size = strlen(fieldName);
         char * name = (char*)calloc(size+1, sizeof(char));
         strncpy(name, fieldName, size);
@@ -132,10 +134,10 @@ extern "C" {
     //     self->ob_type->tp_free((PyObject*)self);
     // }
 
-    PyObject * moose_Field_delete(_Field * self)
+    void moose_Field_dealloc(_Field * self)
     {
         Py_DECREF(self->owner);
-        Py_RETURN_NONE;
+        self->ob_type->tp_free((PyObject*)self);
     }
         
 
@@ -182,7 +184,7 @@ extern "C" {
         "moose.Field",                                  /* tp_name */
         sizeof(_Field),                                 /* tp_basicsize */
         0,                                              /* tp_itemsize */
-        0, //(destructor)moose_Field_dealloc,                /* tp_dealloc */
+        (destructor)moose_Field_dealloc,                /* tp_dealloc */
         0,                                              /* tp_print */
         0,                                              /* tp_getattr */
         0,                                              /* tp_setattr */
