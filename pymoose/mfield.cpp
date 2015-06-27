@@ -135,6 +135,7 @@ extern "C" {
     PyObject * moose_Field_delete(_Field * self)
     {
         Py_DECREF(self->owner);
+        Py_RETURN_NONE;
     }
         
 
@@ -315,7 +316,6 @@ extern "C" {
             Py_DECREF(arg);
         }
         // Call ObjId._setDestField with the new arguments
-        _ObjId * obj = PyObject_New(_ObjId, &ObjIdType);
         PyObject * ret = moose_ObjId_setDestField(((_Field*)self)->owner, newargs);
         return ret;
     }
@@ -617,7 +617,6 @@ extern "C" {
         if (self->owner->oid_.bad()){
             RAISE_INVALID_ID(NULL, "moose_ElementField_getSlice");
         }        
-        extern PyTypeObject ObjIdType;
         Py_ssize_t len = Field<unsigned int>::get(self->myoid, "numField");
         while (start < 0){
             start += len;
