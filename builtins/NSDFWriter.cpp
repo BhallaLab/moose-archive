@@ -283,6 +283,10 @@ hid_t NSDFWriter::getEventDataset(string srcPath, string srcField)
     stringstream dsetname;
     dsetname << source.id.value() <<"_" << source.dataIndex << "_" << source.fieldIndex;
     hid_t dataset = createDataset(container, dsetname.str().c_str());
+    hid_t attr = writeScalarAttr<string>(dataset, "source", source.path());
+    H5Aclose(attr);
+    attr = writeScalarAttr<string>(dataset, "field", srcField);
+    H5Aclose(attr);
     eventSrcDataset_[path] = dataset;
     return dataset;    
 }
