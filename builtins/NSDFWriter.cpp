@@ -57,6 +57,8 @@
 #include "NSDFWriter.h"
 
 
+const char* const EVENTPATH ="/data/event";
+
 const Cinfo * NSDFWriter::initCinfo()
 {    
     static FieldElementFinfo< NSDFWriter, InputVariable > eventInputFinfo(
@@ -113,14 +115,14 @@ const Cinfo * NSDFWriter::initCinfo()
 
 static const Cinfo * nsdfWriterCinfo = NSDFWriter::initCinfo();
 
-NSDFWriter::NSDFWriter()
+NSDFWriter::NSDFWriter(): eventGroup_(-1), uniformGroup_(-1), dataGroup_(-1), modelGroup_(-1), mapGroup_(-1)
 {
-    cout << "####eventInputs size " << eventInputs_.size() <<endl;
     ;
 }
 
 NSDFWriter::~NSDFWriter()
 {
+    flush();
     // flush data
 }
 
@@ -142,17 +144,14 @@ void NSDFWriter::closeUniformData()
  */
 void NSDFWriter::openUniformData(const Eref &eref)
 {
-    cout << "#### here" << endl;
     const SrcFinfo * requestOut = (SrcFinfo*)eref.element()->cinfo()->findFinfo("requestOut");
     unsigned int numTgt = eref.element()->getMsgTargetAndFunctions(eref.dataIndex(),
                                                                 requestOut,
                                                                 src_,
                                                                 func_);
     assert(numTgt ==  src_.size());
-    cout << "#### eventInputs.size=" << eventInputs_.size() <<endl;
     for (unsigned int ii = 0; ii < func_.size(); ++ii){
         string varname = func_[ii];
-        cout << "#### ii=" << ii << ", varname" << varname << endl;
         size_t found = varname.find("get");
         if (found == 0){
             varname = varname.substr(3);
@@ -181,8 +180,15 @@ void NSDFWriter::closeEventData()
     events_.clear();
     eventInputs_.clear();            
     eventDatasets_.clear();
+    eventSrc_.clear();
+    eventSrcFields_.clear();
 }
 
+/**
+   Populates the vector of event data buffers (vectors), vector of
+   event source objects, vector of event source fields and the vector
+   of event datasets by querying the messages on InputVariables.
+ */
 void NSDFWriter::openEventData(const Eref &eref)
 {
     if (filehandle_ <= 0){
@@ -192,42 +198,25 @@ void NSDFWriter::openEventData(const Eref &eref)
         stringstream path;
         path << eref.objId().path() << "/" << "eventInput[" << ii << "]";
         ObjId inputObj = ObjId(path.str());
-        cout << "%%% " << inputObj << endl;
         Element * el = inputObj.element();
-        const Finfo * dest = el->cinfo()->findFinfo("input");
-        vector < Id > src;
-        el->getNeighbors(src, dest);
+        const DestFinfo * dest = static_cast<const DestFinfo*>(el->cinfo()->findFinfo("input"));
+        vector < ObjId > src;
+        vector < string > srcFields;
+        el->getMsgSourceAndSender(dest->getFid(), src, srcFields);
         if (src.size() > 1){
             cerr << "NSDFWriter::openEventData - only one source can be connected to an eventInput" <<endl;
         } else if (src.size() == 1){
-            // TODO get the SrcFinfo name for each event source
-            // and map srcpath.srcfield -> event dataset            
+            eventSrcFields_.push_back(srcFields[0]);
+            eventSrc_.push_back(src[0].path());
+            events_.resize(eventSrc_.size());
+            stringstream path;
+            path << src[0].path() << "." << srcFields[0];
+            hid_t dataSet = getEventDataset(src[0].path(), srcFields[0]);
+            eventDatasets_.push_back(dataSet);            
+        } else {
+            cerr <<"NSDFWriter::openEventData - cannot handle multiple connections at single input." <<endl;
         }
     }
-    // // events is similar to regular data in HDF5DataWriter
-    // for (unsigned int ii = 0; ii < eventSrc_.size(); ++ii){
-    //     string varname = eventFunc_[ii];
-    //     size_t found = varname.find("get");
-    //     if (found == 0){
-    //         varname = varname.substr(3);
-    //         if (varname.length() == 0){
-    //             varname = eventFunc_[ii];
-    //         } else {
-    //             // TODO: there is no way we can get back the original
-    //             // field-name case. tolower will get the right name in
-    //             // most cases as field names start with lower case by
-    //             // convention in MOOSE.
-    //             varname[0] = tolower(varname[0]);
-    //         }
-    //     }
-    //     assert(varname.length() > 0);
-    //     string path = src_[ii].path() + "/" + varname;
-    //     hid_t datasetId = getEventDataset(path);
-    //     // TODO we shall allow only spike events - getEventDataset
-    //     // will map all paths to spikes
-    //     eventDatasets_.push_back(datasetId);
-    // }
-    // events_.resize(eventSrc_.size());
 }
 
 herr_t NSDFWriter::writeEnv()
@@ -236,13 +225,80 @@ herr_t NSDFWriter::writeEnv()
     return 0;
 }
 
+/**
+   Create or retrieve a dataset for an event input.  The dataset path
+   will be /event/{class}/{srcFinfo}/{id}_{dataIndex}_{fieldIndex}.
+
+   path : {source_object_id}.{source_field_name}
+
+   TODO: check the returned hid_t and show appropriate error messages.
+ */
+hid_t NSDFWriter::getEventDataset(string srcPath, string srcField)
+{
+    string path = srcPath + "." + srcField;
+            
+    map< string, hid_t >::iterator it = eventSrcDataset_.find(path);
+    if (it != eventSrcDataset_.end()){
+        return it->second;
+    }
+    ObjId source(srcPath);
+    herr_t status;
+    htri_t exists = -1;
+    string className = Field<string>::get(source, "className");
+    vector<string> pathTokens;
+    tokenize(EVENTPATH, "/", pathTokens);
+    pathTokens.push_back(className);
+    pathTokens.push_back(srcField);
+    hid_t container = -1;
+    hid_t prev = filehandle_;
+    for (unsigned int ii = 0; ii < pathTokens.size(); ++ii){
+        exists = H5Lexists(prev, pathTokens[ii].c_str(),
+                                  H5P_DEFAULT);
+        if (exists > 0){
+            // try to open existing group
+            container = H5Gopen2(prev, pathTokens[ii].c_str(), H5P_DEFAULT);
+        } else if (exists == 0) {
+            // If that fails, try to create a group
+            container = H5Gcreate2(prev, pathTokens[ii].c_str(),
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        } 
+        if ((exists < 0) || (container < 0)){
+            // Failed to open/create a group, print the
+            // offending path (for debugging; the error is
+            // perhaps at the level of hdf5 or file system).
+            cerr << "Error: failed to open/create group: ";
+            for (unsigned int jj = 0; jj <= ii; ++jj){
+                cerr << "/" << pathTokens[jj];
+            }
+            cerr << endl;
+            prev = -1;            
+        }
+        if (prev >= 0  && prev != filehandle_){
+            // Successfully opened/created new group, close the old group
+            status = H5Gclose(prev);
+            assert( status >= 0 );
+        }
+        prev = container;
+    }    
+    stringstream dsetname;
+    dsetname << source.id.value() <<"_" << source.dataIndex << "_" << source.fieldIndex;
+    hid_t dataset = createDataset(container, dsetname.str().c_str());
+    eventSrcDataset_[path] = dataset;
+    return dataset;    
+}
+
 void NSDFWriter::flush()
 {
-    HDF5DataWriter::flush();
     // TODO - append all uniform data
-    // TODO - append all event data
-    // clear the data buffers
+    
+    // append all event data
+    for (unsigned int ii = 0; ii < eventSrc_.size(); ++ii){
+        appendToDataset(getEventDataset(eventSrc_[ii], eventSrcFields_[ii]),
+                        events_[ii]);
+        events_[ii].clear();
+    }
     // flush HDF5 nodes.
+    HDF5DataWriter::flush();
 }
 
 void NSDFWriter::reinit(const Eref& eref, const ProcPtr proc)
@@ -260,7 +316,6 @@ void NSDFWriter::reinit(const Eref& eref, const ProcPtr proc)
         filename_ = "moose_data.nsdf.h5";
     }
     openFile();
-    cout << "#### element:" << eref.element() << " path=" << eref.objId().path() << endl;
     openUniformData(eref);
     openEventData(eref);
     herr_t err = writeEnv();
@@ -269,9 +324,31 @@ void NSDFWriter::reinit(const Eref& eref, const ProcPtr proc)
 
 void NSDFWriter::process(const Eref& eref, ProcPtr proc)
 {
-    // TODO: send request for data
-    // TODO do actual check on flush limits and write stuff
-    
+    if (filehandle_ < 0){
+        return;
+    }
+    vector < double > uniformData;
+    const Finfo* tmp = eref.element()->cinfo()->findFinfo("requestOut");
+    const SrcFinfo1< vector < double > *>* requestOut = static_cast<const SrcFinfo1< vector < double > * > * >(tmp);
+    requestOut->send(eref, &uniformData);
+    for (unsigned int ii = 0; ii < uniformData.size(); ++ii){
+        data_[ii].push_back(uniformData[ii]);
+    }
+    ++steps_;
+    if (steps_ < flushLimit_){
+        return;
+    }
+    // // TODO this is place holder. Will convert to 2D datasets to
+    // // collect same field from object on same clock
+    // for (unsigned int ii = 0; ii < datasets_.size(); ++ii){
+    //     herr_t status = appendToDataset(datasets_[ii], data_[ii]);
+    //     data_[ii].clear();
+    // }
+    // for (unsigned int ii = 0; ii < events_.size(); ++ii){
+    //     herr_t status = appendToDataset(eventDatasets_[ii], events_[ii]);
+    // }
+    NSDFWriter::flush();
+    steps_ = 0;
 }
 
 NSDFWriter& NSDFWriter::operator=( const NSDFWriter& other)

@@ -91,15 +91,23 @@ class NSDFWriter: public HDF5DataWriter
     static const Cinfo *initCinfo();
 
   protected:    
-    hid_t getEventDataset(string path);
-    void sortSources();    
+    hid_t getEventDataset(string srcPath, string srcField);
+    void sortSources();
     map <string, string> env_; // environment attributes
     vector < hid_t > eventDatasets_;
     // event times data_ and datasets_ inherited from HDF5DataWriter
     // are still attached to requestOut message
     vector < vector < double > > events_; 
     vector < InputVariable > eventInputs_;
-    map <ObjId, hid_t> eventMap_;
+    vector < string > eventSrcFields_;
+    vector < string > eventSrc_;
+    map < string, hid_t > eventSrcDataset_;
+    hid_t eventGroup_; // handle for event container
+    hid_t uniformGroup_; // handle for uniform container
+    hid_t dataGroup_; // handle for data container.
+    hid_t modelGroup_; // handle for model container
+    hid_t mapGroup_; // handle for map container
+    map< string, hid_t > classToEvent_; // map class name to event containers
 };
 #endif // _NSDFWRITER_H
 #endif // USE_HDF5
