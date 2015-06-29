@@ -66,8 +66,8 @@ extra_link_args         =   [ "-fPIC"
                             ]
 
 #specify include directories to search
-include_dirs            =   [ "."
-                            , "./include"
+include_dirs            =   [ "moogli"
+                            , "moogli/include"
                             , "/usr/share/sip/PyQt4/"
                             , "/usr/include/qt4/"
                             , "/usr/include/qt4/QtCore/"
@@ -88,24 +88,24 @@ undef_macros            =   [
 
 
 moogli = Extension( name                  =   "moogli._moogli"
-                  , sources               =   [ "src/core/Morphology.cpp"
-                                              , "src/core/Compartment.cpp"
-                                              , "src/core/SelectInfo.cpp"
-                                              , "src/core/KeyboardHandler.cpp"
-                                              , "src/core/MorphologyViewer.cpp"
-                                              , "src/core/MorphologyViewerWidget.cpp"
-                                              , "moc/MorphologyViewer.moc.cpp"
-                                              , "moc/MorphologyViewerWidget.moc.cpp"
-                                              , "src/core/Selector.cpp"
-                                              , "src/mesh/CylinderMesh.cpp"
-                                              , "src/mesh/SphereMesh.cpp"
-                                              , "src/utility/conversions.cpp"
-                                              , "src/utility/record.cpp"
-                                              , "src/utility/stringutils.cpp"
-                                              , "src/utility/utilities.cpp"
-                                              , "src/constants.cpp"
-                                              , "src/globals.cpp"
-                                              , "sip/moogli.sip"
+                  , sources               =   [ "moogli/src/core/Morphology.cpp"
+                                              , "moogli/src/core/Compartment.cpp"
+                                              , "moogli/src/core/SelectInfo.cpp"
+                                              , "moogli/src/core/KeyboardHandler.cpp"
+                                              , "moogli/src/core/MorphologyViewer.cpp"
+                                              , "moogli/src/core/MorphologyViewerWidget.cpp"
+                                              , "moogli/moc/MorphologyViewer.moc.cpp"
+                                              , "moogli/moc/MorphologyViewerWidget.moc.cpp"
+                                              , "moogli/src/core/Selector.cpp"
+                                              , "moogli/src/mesh/CylinderMesh.cpp"
+                                              , "moogli/src/mesh/SphereMesh.cpp"
+                                              , "moogli/src/utility/conversions.cpp"
+                                              , "moogli/src/utility/record.cpp"
+                                              , "moogli/src/utility/stringutils.cpp"
+                                              , "moogli/src/utility/utilities.cpp"
+                                              , "moogli/src/constants.cpp"
+                                              , "moogli/src/globals.cpp"
+                                              , "moogli/sip/moogli.sip"
                                               ]
                   , include_dirs          =   include_dirs
                   , extra_compile_args    =   extra_compile_args
@@ -148,5 +148,5 @@ setup( name             =   'moogli'
      , ext_modules      =   extensions
      , cmdclass         =   { 'build_ext': sipdistutils.build_ext
                             }
-     , package_dir      = {'': '..'}
+     , packages         =   ['moogli']
      )
