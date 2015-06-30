@@ -58,6 +58,7 @@
 
 
 const char* const EVENTPATH ="/data/event";
+const char* const UNIFORMPATH ="/data/uniform";
 
 const Cinfo * NSDFWriter::initCinfo()
 {    
@@ -128,8 +129,10 @@ NSDFWriter::~NSDFWriter()
 
 void NSDFWriter::closeUniformData()
 {
-    for (unsigned int ii = 0; ii < datasets_.size(); ++ii){
-        H5Dclose(datasets_[ii]);
+    for (map < string, hid_t>::iterator ii = classFieldToUniform_.begin();
+         ii != classFieldToUniform_.end();
+         ++ii){
+        H5Dclose(ii->second);
     }
     data_.clear();
     src_.clear();
@@ -138,18 +141,22 @@ void NSDFWriter::closeUniformData()
 
 }
 
-/**
-   Handle the datasets for the requested fields (connected to
-   requestOut). This is is similar to what HDF5DataWriter does. 
- */
-void NSDFWriter::openUniformData(const Eref &eref)
+void NSDFWriter::sortOutUniformSources(const Eref& eref)
 {
+    classFieldToRows_.clear();
+    objectField_.clear();
+    objectFieldToIndex_.clear();
     const SrcFinfo * requestOut = (SrcFinfo*)eref.element()->cinfo()->findFinfo("requestOut");
     unsigned int numTgt = eref.element()->getMsgTargetAndFunctions(eref.dataIndex(),
                                                                 requestOut,
                                                                 src_,
                                                                 func_);
     assert(numTgt ==  src_.size());
+    /////////////////////////////////////////////////////////////
+    // Go through all the sources and determine the index of the
+    // source message in the dataset
+    /////////////////////////////////////////////////////////////
+    
     for (unsigned int ii = 0; ii < func_.size(); ++ii){
         string varname = func_[ii];
         size_t found = varname.find("get");
@@ -162,14 +169,59 @@ void NSDFWriter::openUniformData(const Eref &eref)
             }
         }
         assert(varname.length() > 0);
-        string path = src_[ii].path() + "/" + varname;
-        hid_t datasetId = getDataset(path);
-    // TODO : For uniform data : sort the variables by fieldname and
-    // source object class then create 2D datasets for each
-    // class/field.  map the source objects to dataset/rowindex.
-        datasets_.push_back(datasetId);
+        objectField_.push_back(pair< string, string >(src_[ii].path(), varname));    
+        string className = Field<string>::get(src_[ii], "className");
+        string datasetPath = className + "/"+ varname;
+        map< string, unsigned int >::iterator it = classFieldToRows_.find(datasetPath);
+        unsigned int currentIndex = 0;
+        if (it != classFieldToRows_.end()){
+            currentIndex = it->second;
+        }
+        string objectFieldPath = src_[ii].path() + "/" + varname;
+        objectFieldToIndex_[objectFieldPath] = currentIndex;
+        classFieldToRows_[datasetPath] = currentIndex + 1;
     }
-    data_.resize(src_.size());
+}
+
+/**
+   Handle the datasets for the requested fields (connected to
+   requestOut). This is is similar to what HDF5DataWriter does. 
+ */
+void NSDFWriter::openUniformData(const Eref &eref)
+{
+    sortOutUniformSources(eref);
+    
+    if (dataGroup_ < 0){
+        dataGroup_ = H5Gopen2(filehandle_, "data", H5P_DEFAULT);
+    }
+    if (uniformGroup_ < 0){
+        uniformGroup_ = H5Gopen2(dataGroup_, "uniform", H5P_DEFAULT);
+    }
+
+    // create the datasets and map them to className/field
+    for (map< string, unsigned int >::iterator it = classFieldToRows_.begin();
+         it != classFieldToRows_.end();
+         ++it){
+        hid_t dataset = createDataset2D(uniformGroup_, it->first, it->second);
+        classFieldToUniform_[it->first] = dataset;
+    }
+    
+    for (unsigned int ii = 0; ii < src_.size(); ++ii){
+        assert(src_[ii].path() == objectField_[ii].first);
+        string of = objectField_[ii].first + "/" + objectField_[ii].second;
+        string classField = Field<string>::get(src_[ii], "className") + "/" + objectField_[ii].second;
+        map< string, hid_t>::iterator dit = classFieldToUniform_.find(classField);
+        if (dit == classFieldToUniform_.end()){
+            cerr << "Error: NSDFWriter::openUniformData - could not find dataset " << classField << endl;
+            continue;
+        }
+        map< string, unsigned int >::iterator oit = objectFieldToIndex_.find(of);
+        if (oit == objectFieldToIndex_.end()){
+            cerr << "Error: NSDFWriter::openUniformData - could not find index of " << of <<endl;
+            continue;
+        }
+        uniformSrcDatasetIndex_[of] = pair< hid_t, unsigned int>(dit->second, oit->second);        
+    }
 }
 
 void NSDFWriter::closeEventData()
@@ -226,8 +278,70 @@ herr_t NSDFWriter::writeEnv()
 }
 
 /**
+   Create or retrieve a dataset for an uniform data source.
+   The dataset path will be
+   /data/uniform/{class}/{field}
+ */
+
+hid_t NSDFWriter::getUniformDataset(string srcPath, string srcField)
+{
+    string path = srcPath + "." +srcField;
+    map < string, pair< hid_t, unsigned int> >::iterator it = uniformSrcDatasetIndex_.find(path);
+    if (it != uniformSrcDatasetIndex_.end()){
+        return it->second.first;
+    }
+    ObjId src = ObjId(srcPath);
+    string className = Field<string>::get(src, "className");
+    vector< string > pathTokens;
+    tokenize(UNIFORMPATH, "/", pathTokens);
+    pathTokens.push_back(className);
+    pathTokens.push_back(srcField);
+    hid_t container = -1;
+    hid_t prev = filehandle_;
+    for (unsigned int ii = 0; ii < pathTokens.size(); ++ii){
+        herr_t exists = H5Lexists(prev, pathTokens[ii].c_str(),
+                                  H5P_DEFAULT);
+        if (exists > 0){
+            // try to open existing group
+            container = H5Gopen2(prev, pathTokens[ii].c_str(), H5P_DEFAULT);
+        } else if (exists == 0) {
+            // If that fails, try to create a group
+            container = H5Gcreate2(prev, pathTokens[ii].c_str(),
+                            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+        } 
+        if ((exists < 0) || (container < 0)){
+            // Failed to open/create a group, print the
+            // offending path (for debugging; the error is
+            // perhaps at the level of hdf5 or file system).
+            cerr << "Error: failed to open/create group: ";
+            for (unsigned int jj = 0; jj <= ii; ++jj){
+                cerr << "/" << pathTokens[jj];
+            }
+            cerr << endl;
+            prev = -1;            
+        }
+        if (prev >= 0  && prev != filehandle_){
+            // Successfully opened/created new group, close the old group
+            herr_t status = H5Gclose(prev);
+            assert( status >= 0 );
+        }
+        prev = container;
+    }    
+    stringstream dsetname;
+    dsetname << src.id.value() <<"_" << src.dataIndex << "_" << src.fieldIndex;
+    hid_t dataset = createDataset(container, dsetname.str().c_str());
+    hid_t attr = writeScalarAttr<string>(dataset, "source", src.path());
+    H5Aclose(attr);
+    attr = writeScalarAttr<string>(dataset, "field", srcField);
+    H5Aclose(attr);
+    eventSrcDataset_[path] = dataset;
+    return dataset;    
+    
+}
+
+/**
    Create or retrieve a dataset for an event input.  The dataset path
-   will be /event/{class}/{srcFinfo}/{id}_{dataIndex}_{fieldIndex}.
+   will be /data/event/{class}/{srcFinfo}/{id}_{dataIndex}_{fieldIndex}.
 
    path : {source_object_id}.{source_field_name}
 

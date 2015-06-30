@@ -322,6 +322,7 @@ hid_t HDF5DataWriter::createDataset(hid_t parent_id, string name)
     hid_t dataset_id = H5Dcreate2(parent_id, name.c_str(),
                                   H5T_NATIVE_DOUBLE, dataspace,
                                   H5P_DEFAULT, chunk_params, H5P_DEFAULT);
+    H5Sclose(dataspace);
     return dataset_id;
 }
 

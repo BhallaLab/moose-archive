@@ -92,7 +92,8 @@ class NSDFWriter: public HDF5DataWriter
 
   protected:    
     hid_t getEventDataset(string srcPath, string srcField);
-    void sortSources();
+    void sortOutUniformSources(const Eref& eref);
+    hid_t getUniformDataset(string srcPath, string srcField);
     map <string, string> env_; // environment attributes
     vector < hid_t > eventDatasets_;
     // event times data_ and datasets_ inherited from HDF5DataWriter
@@ -107,7 +108,32 @@ class NSDFWriter: public HDF5DataWriter
     hid_t dataGroup_; // handle for data container.
     hid_t modelGroup_; // handle for model container
     hid_t mapGroup_; // handle for map container
-    map< string, hid_t > classToEvent_; // map class name to event containers
+    map< string, hid_t > classFieldToUniform_;
+    // maps a path.srcFinfo to the <target dataset, row index > for
+    // storing uniform data in dataset.
+    map< string, pair< hid_t, unsigned int > > uniformSrcDatasetIndex_;
+    /**
+       Storing uniform data:
+
+       The data coming in return for requestOut gets stored in
+       dataBuffer in the same sequence as the connections,
+       irrespective of class and field.
+
+       For each source object find the class and field and create map
+       < class.field, vector<unsigned int> > that maps the class.field
+       to a vector of indices in dataBuffer. the index vector contents
+       should be in the same order as the sequence of objects
+       
+     */
+    // The last number of rows in each dataset
+    // (/data/uniform/className/fieldName -> size)
+
+    map< string, unsigned int > classFieldToRows_;
+    // the index of the recorded field in its dataset (objectPath/fieldName -> index)
+    map< string, unsigned int > objectFieldToIndex_;
+    // objectPath -> field - just for reuse later - avoid repeating
+    // extraction of field name from func_.
+    vector < pair< string, string > > objectField_;
 };
 #endif // _NSDFWRITER_H
 #endif // USE_HDF5
