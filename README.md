@@ -1,6 +1,5 @@
-Build Status - master (This is stable branch): [![Build Status - master](https://travis-ci.org/BhallaLab/moose.svg?branch=master)](https://travis-ci.org/BhallaLab/moose)
-
-Build Status - trunk (This is development branch) [![Build Status - trunk](https://travis-ci.org/BhallaLab/moose.svg?branch=trunk)](https://travis-ci.org/BhallaLab/moose)
+This is a snapshot of NCBS MOOSE simulator from sourceforge. This is here for
+historical reason. **DO NOT CLONE THIS REPOSITOR**.
 
 # MOOSE
 
